@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../services/auth_service.dart';
 import 'register_screen.dart';
 import 'role_selection_screen.dart';
 
@@ -15,20 +16,82 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailOrPhoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      Future.delayed(const Duration(milliseconds: 900), () {
+
+      try {
+        await _authService.login(
+          email: _emailOrPhoneController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
         if (!mounted) return;
-        setState(() => _isLoading = false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
         );
-      });
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceAll('Exception: ', ''),
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            backgroundColor: AppColors.emergencyRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailOrPhoneController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please enter your email above first.',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _authService.resetPassword(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Password reset link sent to $email',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: AppColors.emergencyRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -82,9 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 28),
 
-                // Email or Phone
+                // Email
                 Text(
-                  'Email or Phone',
+                  'Email',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -94,9 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailOrPhoneController,
+                  keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.poppins(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Enter email or phone',
+                    hintText: 'Enter your email',
                     fillColor: Colors.white,
                     filled: true,
                     prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
@@ -110,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   validator: (val) =>
-                      val == null || val.isEmpty ? 'Please enter email or phone' : null,
+                      val == null || val.isEmpty ? 'Please enter your email' : null,
                 ),
 
                 const SizedBox(height: 20),
@@ -165,17 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Password reset link sent to your registered contact.',
-                            style: GoogleFonts.poppins(fontSize: 12),
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+                    onPressed: _handleForgotPassword,
                     child: Text(
                       'Forgot Password?',
                       style: GoogleFonts.poppins(
@@ -241,9 +295,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // Google Sign In Button
+                // Google Sign In Button (UI placeholder - not yet functional)
                 OutlinedButton.icon(
-                  onPressed: () => _handleLogin(),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Google Sign-In coming soon.',
+                          style: GoogleFonts.poppins(fontSize: 12),
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: const BorderSide(color: AppColors.border),

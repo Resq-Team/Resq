@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../constants/app_colors.dart';
 
 class ShelterLocatorScreen extends StatefulWidget {
@@ -12,6 +14,7 @@ class ShelterLocatorScreen extends StatefulWidget {
 class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showMap = false; // Toggle between List view and Map view
 
   final List<Map<String, dynamic>> _shelters = [
     {
@@ -22,6 +25,8 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
       'address': 'Community Hall, Colombo 03',
       'facilities': ['Food Supplies', 'Medical Aid', 'Clean Water', 'Child Care'],
       'color': Color(0xFF2E7D32),
+      'lat': 6.9147,
+      'lng': 79.8489,
     },
     {
       'name': 'Unity Shelter Center',
@@ -31,6 +36,8 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
       'address': 'St. Joseph Sports Complex, Colombo 10',
       'facilities': ['Food Supplies', 'Clean Water', 'Blankets'],
       'color': Color(0xFF1E88E5),
+      'lat': 6.9180,
+      'lng': 79.8650,
     },
     {
       'name': 'Hope Shelter',
@@ -40,6 +47,8 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
       'address': 'Public Library Hall, Wellawatte',
       'facilities': ['First Aid', 'Dry Rations', 'Security'],
       'color': Color(0xFFFB8C00),
+      'lat': 6.8747,
+      'lng': 79.8590,
     },
     {
       'name': 'Relief Shelter Home',
@@ -49,6 +58,8 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
       'address': 'Mahanama College Auditorium, Colombo 07',
       'facilities': ['Food Supplies', 'Medical Unit', 'Backup Power', 'Beds'],
       'color': Color(0xFF2E7D32),
+      'lat': 6.9010,
+      'lng': 79.8670,
     },
   ];
 
@@ -216,6 +227,18 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showMap ? Icons.list_rounded : Icons.map_rounded,
+              color: Colors.white,
+            ),
+            tooltip: _showMap ? 'Show List' : 'Show Map',
+            onPressed: () {
+              setState(() => _showMap = !_showMap);
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -246,31 +269,81 @@ class _ShelterLocatorScreenState extends State<ShelterLocatorScreen> {
           ),
           const Divider(height: 1, color: AppColors.border),
 
-          // Shelters List
+          // Map View or List View
           Expanded(
-            child: _filteredShelters.isEmpty
-                ? Center(
-                    child: Text(
-                      'No shelters found matching search',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: _filteredShelters.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final shelter = _filteredShelters[index];
-                      return _buildShelterCard(shelter);
-                    },
-                  ),
+            child: _showMap ? _buildMapView() : _buildListView(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildMapView() {
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: LatLng(6.9147, 79.8600), // Colombo center
+        initialZoom: 12.0,
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.resq.resq',
+        ),
+        MarkerLayer(
+          markers: _filteredShelters.map((shelter) {
+            return Marker(
+              point: LatLng(shelter['lat'] as double, shelter['lng'] as double),
+              width: 44,
+              height: 44,
+              child: GestureDetector(
+                onTap: () => _showShelterDetails(shelter),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: shelter['color'] as Color, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.home_work_rounded,
+                    color: shelter['color'] as Color,
+                    size: 22,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListView() {
+    return _filteredShelters.isEmpty
+        ? Center(
+            child: Text(
+              'No shelters found matching search',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          )
+        : ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: _filteredShelters.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final shelter = _filteredShelters[index];
+              return _buildShelterCard(shelter);
+            },
+          );
   }
 
   Widget _buildShelterCard(Map<String, dynamic> shelter) {

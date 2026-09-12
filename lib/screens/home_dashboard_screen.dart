@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_colors.dart';
 import '../widgets/pulse_sos_button.dart';
 import 'sos_emergency_screen.dart';
@@ -21,6 +22,15 @@ class HomeDashboardScreen extends StatelessWidget {
     this.onNavigateTab,
   });
 
+  // Gets the logged-in user's display name, with a graceful fallback
+  String _getUserFirstName() {
+    final user = FirebaseAuth.instance.currentUser;
+    final fullName = user?.displayName;
+    if (fullName == null || fullName.isEmpty) return 'Guest';
+    // Show only the first name for a cleaner greeting
+    return fullName.split(' ').first;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,7 +49,7 @@ class HomeDashboardScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello, Dumindu',
+                        'Hello, ${_getUserFirstName()}',
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,

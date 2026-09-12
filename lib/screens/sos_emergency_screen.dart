@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../widgets/pulse_sos_button.dart';
+import '../services/sos_service.dart';
 
 class SosEmergencyScreen extends StatefulWidget {
   const SosEmergencyScreen({super.key});
@@ -12,6 +13,9 @@ class SosEmergencyScreen extends StatefulWidget {
 }
 
 class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
+  final SosService _sosService = SosService();
+  bool _isSending = false;
+
   void _triggerSos() {
     int countdown = 5;
     Timer? timer;
@@ -30,7 +34,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
               } else {
                 t.cancel();
                 Navigator.pop(dialogCtx);
-                _showSosDispatchedModal();
+                _sendSosToFirestore();
               }
             });
 
@@ -113,7 +117,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                             onPressed: () {
                               timer?.cancel();
                               Navigator.pop(dialogCtx);
-                              _showSosDispatchedModal();
+                              _sendSosToFirestore();
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.emergencyRed,
@@ -143,7 +147,35 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
     );
   }
 
-  void _showSosDispatchedModal() {
+  /// Sends the SOS alert to Firestore, then shows the result modal
+  Future<void> _sendSosToFirestore() async {
+    setState(() => _isSending = true);
+
+    try {
+      // TODO: Replace with real GPS coordinates using geolocator package
+      // For now using dummy Colombo coordinates
+      await _sosService.sendSosAlert(
+        latitude: 6.9271,
+        longitude: 79.8612,
+        userName: 'ResQ User', // Replace with actual logged-in user name
+        message: 'Emergency! Immediate help needed.',
+      );
+
+      if (mounted) {
+        _showSosDispatchedModal(success: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSosDispatchedModal(success: false, errorMessage: e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  void _showSosDispatchedModal({bool success = true, String? errorMessage}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -168,19 +200,19 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDCFCE7),
+                decoration: BoxDecoration(
+                  color: success ? const Color(0xFFDCFCE7) : AppColors.emergencyRedLight,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.infoGreen,
+                child: Icon(
+                  success ? Icons.check_circle_rounded : Icons.error_rounded,
+                  color: success ? AppColors.infoGreen : AppColors.emergencyRed,
                   size: 48,
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                'SOS Alert Dispatched!',
+                success ? 'SOS Alert Dispatched!' : 'Failed to Send SOS',
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -189,7 +221,9 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Rescue Team Alpha (2.4 km away) and Emergency Management have received your coordinates. Stay calm in your current location.',
+                success
+                    ? 'Rescue Team Alpha (2.4 km away) and Emergency Management have received your coordinates. Stay calm in your current location.'
+                    : 'Could not reach the server. Please check your internet connection and try again.\n${errorMessage ?? ''}',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 13,
@@ -200,14 +234,14 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryNavy,
+                  backgroundColor: success ? AppColors.primaryNavy : AppColors.emergencyRed,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
-                  'Dismiss',
+                  success ? 'Dismiss' : 'Try Again',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -290,10 +324,19 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
                   // Giant Glowing Pulsing SOS Button
                   Center(
-                    child: PulseSosButton(
-                      size: 160,
-                      onTap: _triggerSos,
-                    ),
+                    child: _isSending
+                        ? const SizedBox(
+                            width: 160,
+                            height: 160,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 6,
+                              color: AppColors.emergencyRed,
+                            ),
+                          )
+                        : PulseSosButton(
+                            size: 160,
+                            onTap: _triggerSos,
+                          ),
                   ),
 
                   const Spacer(),
@@ -366,7 +409,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
                   // Red "Send SOS" Button
                   ElevatedButton(
-                    onPressed: _triggerSos,
+                    onPressed: _isSending ? null : _triggerSos,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.emergencyRed,
                       minimumSize: const Size(double.infinity, 54),
