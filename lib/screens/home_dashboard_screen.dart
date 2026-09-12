@@ -13,6 +13,7 @@ import 'volunteer_dashboard_screen.dart';
 import 'donations_screen.dart';
 import 'relief_resources_screen.dart';
 import 'missing_persons_screen.dart';
+import 'admin_sos_dashboard_screen.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -144,7 +145,7 @@ class HomeDashboardScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Action Grid (8 Cards + Feedback)
+              // Action Grid (10 Cards)
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -292,6 +293,22 @@ class HomeDashboardScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const FeedbackScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 10. Admin SOS Dashboard (අලුතින් එකතු කරන ලදී)
+                  _buildGridAction(
+                    icon: Icons.admin_panel_settings_rounded,
+                    iconColor: const Color(0xFFD32F2F),
+                    bgColor: const Color(0xFFFFEBEE),
+                    label: 'Admin\nSOS',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminSosDashboardScreen(),
                         ),
                       );
                     },
