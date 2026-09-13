@@ -1,12 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../services/language_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  final Map<String, String> _languages = const {
+    'en': 'English',
+    'si': 'සිංහල (Sinhala)',
+    'ta': 'தமிழ் (Tamil)',
+  };
+
+  void _showLanguageSelector(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Language / භාෂාව තෝරන්න / மொழியைத் தேர்ந்தெடுக்கவும்',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._languages.entries.map((entry) {
+                final isSelected = languageProvider.currentLanguage == entry.key;
+                return ListTile(
+                  title: Text(
+                    entry.value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? AppColors.emergencyRed : AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.emergencyRed)
+                      : null,
+                  onTap: () {
+                    languageProvider.changeLanguage(entry.key); // Provider එකේ Language එක වෙනස් කිරීම
+                    Navigator.pop(context);
+                  },
+                );
+              }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -17,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Settings',
+          lang.getText('settings'),
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -29,9 +90,8 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // General Section
           Text(
-            'General',
+            lang.getText('general'),
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -42,29 +102,26 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsGroup([
             _buildSettingsRow(
               icon: Icons.language_rounded,
-              title: 'Language',
-              trailingText: 'English',
-              onTap: () {},
+              title: lang.getText('language'),
+              trailingText: _languages[lang.currentLanguage]?.split(' ').first,
+              onTap: () => _showLanguageSelector(context),
             ),
             _buildSettingsRow(
               icon: Icons.brightness_6_rounded,
-              title: 'Theme',
+              title: lang.getText('theme'),
               trailingText: 'Light',
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.notifications_active_outlined,
-              title: 'Notification Settings',
+              title: lang.getText('notifications'),
               onTap: () {},
               showDivider: false,
             ),
           ]),
-
           const SizedBox(height: 24),
-
-          // Account & Legal Section
           Text(
-            'Account',
+            lang.getText('account'),
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -75,17 +132,17 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsGroup([
             _buildSettingsRow(
               icon: Icons.privacy_tip_outlined,
-              title: 'Privacy Policy',
+              title: lang.getText('privacy'),
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.description_outlined,
-              title: 'Terms of Service',
+              title: lang.getText('terms'),
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.info_outline_rounded,
-              title: 'About Resq App',
+              title: lang.getText('about'),
               trailingText: 'v1.0.0',
               onTap: () {},
               showDivider: false,

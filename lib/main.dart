@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart'; // Provider package එක import කරන ලදී
+import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'screens/splash_screen.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'services/notification_service.dart'; // Notification Service එක import කරන ලදී
+import 'services/notification_service.dart';
+import 'services/language_provider.dart'; // LanguageProvider එක import කරන ලදී
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,11 +27,19 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  runApp(const ResQApp());
+
+  // ChangeNotifierProvider හරහා LanguageProvider එක මුළු App එකටම Wrap කරන ලදී
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => LanguageProvider(),
+      child: const ResQApp(),
+    ),
+  );
 }
 
 class ResQApp extends StatelessWidget {
   const ResQApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

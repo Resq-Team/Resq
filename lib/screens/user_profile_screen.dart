@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
+import '../services/language_provider.dart';
 import 'settings_screen.dart';
 import 'offline_state_screen.dart';
 import 'syncing_state_screen.dart';
@@ -61,7 +63,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   String get _avatarLetter =>
       _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?';
 
-  void _showEditProfileDialog() {
+  void _showEditProfileDialog(LanguageProvider lang) {
     final nameCtrl = TextEditingController(text: _displayName);
     final phoneCtrl = TextEditingController(text: _userProfile?['phone'] ?? '');
 
@@ -71,7 +73,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Edit Profile',
+            lang.getText('edit_profile'),
             style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Column(
@@ -80,27 +82,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               TextField(
                 controller: nameCtrl,
                 style: GoogleFonts.poppins(fontSize: 13),
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                decoration: InputDecoration(labelText: lang.getText('full_name')),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: phoneCtrl,
                 style: GoogleFonts.poppins(fontSize: 13),
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                decoration: InputDecoration(labelText: lang.getText('phone_number')),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+              child: Text(lang.getText('cancel'), style: GoogleFonts.poppins(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Profile information updated.', style: GoogleFonts.poppins(fontSize: 12)),
+                    content: Text(lang.getText('profile_updated_msg'), style: GoogleFonts.poppins(fontSize: 12)),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -109,7 +111,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 backgroundColor: AppColors.primaryNavy,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text('Save', style: GoogleFonts.poppins(color: Colors.white)),
+              child: Text(lang.getText('save'), style: GoogleFonts.poppins(color: Colors.white)),
             ),
           ],
         );
@@ -119,6 +121,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // LanguageProvider එක listen කරනවා
+    final lang = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -131,7 +136,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               )
             : null,
         title: Text(
-          'My Profile',
+          lang.getText('my_profile'),
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -197,7 +202,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ),
                                 child: Text(
                                   _displayRole == 'citizen'
-                                      ? 'Disaster Victim / Citizen'
+                                      ? lang.getText('citizen_role')
                                       : _displayRole,
                                   style: GoogleFonts.poppins(
                                     fontSize: 10.5,
@@ -233,16 +238,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   // Profile Options
                   _buildActionTile(
                     icon: Icons.person_outline_rounded,
-                    title: 'Edit Profile',
-                    onTap: _showEditProfileDialog,
+                    title: lang.getText('edit_profile'),
+                    onTap: () => _showEditProfileDialog(lang),
                   ),
                   _buildActionTile(
                     icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
+                    title: lang.getText('notifications'),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Push notifications are active for high severity alerts.', style: GoogleFonts.poppins(fontSize: 12)),
+                          content: Text(lang.getText('notifications_msg'), style: GoogleFonts.poppins(fontSize: 12)),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
@@ -250,16 +255,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   _buildActionTile(
                     icon: Icons.palette_outlined,
-                    title: 'Theme',
+                    title: lang.getText('theme'),
                     trailing: Text(
-                      _isDarkMode ? 'Dark' : 'Light',
+                      _isDarkMode ? lang.getText('dark') : lang.getText('light'),
                       style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
                     ),
                     onTap: () {
                       setState(() => _isDarkMode = !_isDarkMode);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Theme switched to ${_isDarkMode ? "Dark" : "Light"} mode', style: GoogleFonts.poppins(fontSize: 12)),
+                          content: Text('${lang.getText('theme_switched_msg')} ${_isDarkMode ? lang.getText('dark') : lang.getText('light')}', style: GoogleFonts.poppins(fontSize: 12)),
                           behavior: SnackBarBehavior.floating,
                           duration: const Duration(seconds: 1),
                         ),
@@ -268,11 +273,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   _buildActionTile(
                     icon: Icons.lock_outline_rounded,
-                    title: 'Change Password',
+                    title: lang.getText('change_password'),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Password change verification code sent to your mobile.', style: GoogleFonts.poppins(fontSize: 12)),
+                          content: Text(lang.getText('change_password_msg'), style: GoogleFonts.poppins(fontSize: 12)),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
@@ -280,7 +285,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   _buildActionTile(
                     icon: Icons.settings_outlined,
-                    title: 'Settings',
+                    title: lang.getText('settings'),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -294,7 +299,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   // Demo Navigation to Offline & Sync States
                   _buildActionTile(
                     icon: Icons.wifi_off_rounded,
-                    title: 'Offline State Demo',
+                    title: lang.getText('offline_demo'),
                     iconColor: AppColors.emergencyRed,
                     onTap: () {
                       Navigator.push(
@@ -305,7 +310,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   _buildActionTile(
                     icon: Icons.sync_rounded,
-                    title: 'Data Sync State Demo',
+                    title: lang.getText('sync_demo'),
                     iconColor: const Color(0xFF1E88E5),
                     onTap: () {
                       Navigator.push(
@@ -320,7 +325,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   // Logout
                   _buildActionTile(
                     icon: Icons.logout_rounded,
-                    title: 'Logout',
+                    title: lang.getText('logout'),
                     iconColor: AppColors.emergencyRed,
                     textColor: AppColors.emergencyRed,
                     onTap: () async {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../widgets/pulse_sos_button.dart';
+import '../services/language_provider.dart';
 import 'sos_emergency_screen.dart';
-import 'disaster_report_screen.dart';
+import 'package:resq/screens/disaster_report_screen.dart';
 import 'disaster_alerts_screen.dart';
 import 'emergency_contacts_screen.dart';
 import 'feedback_screen.dart';
@@ -34,6 +36,9 @@ class HomeDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // LanguageProvider එක Listen කිරීම (භාෂාව වෙනස් වූ පසු Auto Refresh වේ)
+    final lang = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -46,27 +51,31 @@ class HomeDashboardScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, ${_getUserFirstName()}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${lang.getText('hello')}, ${_getUserFirstName()}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Stay safe, stay prepared',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w400,
+                        const SizedBox(height: 2),
+                        Text(
+                          lang.getText('stay_safe'),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   // Notification Bell with badge
                   Stack(
@@ -90,7 +99,7 @@ class HomeDashboardScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const DisasterAlertsScreen(),
+                                builder: (context) => DisasterAlertsScreen(),
                               ),
                             );
                           },
@@ -125,14 +134,14 @@ class HomeDashboardScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SosEmergencyScreen(),
+                            builder: (context) => SosEmergencyScreen(),
                           ),
                         );
                       },
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Emergency SOS',
+                      lang.getText('emergency_sos'),
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -159,12 +168,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.assignment_late_outlined,
                     iconColor: const Color(0xFFE53935),
                     bgColor: const Color(0xFFFFEBEE),
-                    label: 'Disaster\nReport',
+                    label: lang.getText('disaster_report'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const DisasterReportScreen(),
+                          builder: (context) => DisasterReportScreen(),
                         ),
                       );
                     },
@@ -175,12 +184,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.location_city_rounded,
                     iconColor: const Color(0xFF2E7D32),
                     bgColor: const Color(0xFFE8F5E9),
-                    label: 'Shelter\nLocator',
+                    label: lang.getText('shelter_locator'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ShelterLocatorScreen(),
+                          builder: (context) => ShelterLocatorScreen(),
                         ),
                       );
                     },
@@ -191,12 +200,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.crisis_alert_rounded,
                     iconColor: const Color(0xFFE53935),
                     bgColor: const Color(0xFFFFEBEE),
-                    label: 'Alerts',
+                    label: lang.getText('alerts'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const DisasterAlertsScreen(),
+                          builder: (context) => DisasterAlertsScreen(),
                         ),
                       );
                     },
@@ -207,12 +216,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.groups_rounded,
                     iconColor: const Color(0xFF1E88E5),
                     bgColor: const Color(0xFFE3F2FD),
-                    label: 'Volunteers',
+                    label: lang.getText('volunteers'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const VolunteerDashboardScreen(),
+                          builder: (context) => VolunteerDashboardScreen(),
                         ),
                       );
                     },
@@ -223,12 +232,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.volunteer_activism_rounded,
                     iconColor: const Color(0xFFE53935),
                     bgColor: const Color(0xFFFFEBEE),
-                    label: 'Donations',
+                    label: lang.getText('donations'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const DonationsScreen(),
+                          builder: (context) => DonationsScreen(),
                         ),
                       );
                     },
@@ -239,12 +248,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.inventory_2_outlined,
                     iconColor: const Color(0xFF2E7D32),
                     bgColor: const Color(0xFFE8F5E9),
-                    label: 'Resources',
+                    label: lang.getText('resources'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ReliefResourcesScreen(),
+                          builder: (context) => ReliefResourcesScreen(),
                         ),
                       );
                     },
@@ -255,12 +264,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.person_search_rounded,
                     iconColor: const Color(0xFFE53935),
                     bgColor: const Color(0xFFFFEBEE),
-                    label: 'Missing\nPersons',
+                    label: lang.getText('missing_persons'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const MissingPersonsScreen(),
+                          builder: (context) => MissingPersonsScreen(),
                         ),
                       );
                     },
@@ -271,12 +280,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.phone_in_talk_rounded,
                     iconColor: const Color(0xFF0F1E36),
                     bgColor: const Color(0xFFE2E8F0),
-                    label: 'Emergency\nContacts',
+                    label: lang.getText('emergency_contacts'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const EmergencyContactsScreen(),
+                          builder: (context) => EmergencyContactsScreen(),
                         ),
                       );
                     },
@@ -287,12 +296,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.rate_review_outlined,
                     iconColor: const Color(0xFFFB8C00),
                     bgColor: const Color(0xFFFFF3E0),
-                    label: 'Feedback',
+                    label: lang.getText('feedback'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const FeedbackScreen(),
+                          builder: (context) => FeedbackScreen(),
                         ),
                       );
                     },
@@ -303,12 +312,12 @@ class HomeDashboardScreen extends StatelessWidget {
                     icon: Icons.admin_panel_settings_rounded,
                     iconColor: const Color(0xFFD32F2F),
                     bgColor: const Color(0xFFFFEBEE),
-                    label: 'Admin\nSOS',
+                    label: lang.getText('admin_sos'),
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AdminSosDashboardScreen(),
+                          builder: (context) => AdminSosDashboardScreen(),
                         ),
                       );
                     },
