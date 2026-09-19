@@ -1,59 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_colors.dart';
 
 class ReliefResourcesScreen extends StatelessWidget {
   const ReliefResourcesScreen({super.key});
 
-  final List<Map<String, dynamic>> _resources = const [
-    {
-      'title': 'Food Supplies',
-      'available': '1200 units',
-      'stockLevel': 0.75,
-      'category': 'Dry rations, canned food, baby meals',
-      'icon': Icons.lunch_dining_rounded,
-      'color': Color(0xFF2E7D32),
-      'bgColor': Color(0xFFDCFCE7),
-    },
-    {
-      'title': 'Water Bottles',
-      'available': '3500 units',
-      'stockLevel': 0.90,
-      'category': '5L and 1.5L mineral drinking water',
-      'icon': Icons.water_drop_rounded,
-      'color': Color(0xFF1E88E5),
-      'bgColor': Color(0xFFDBEAFE),
-    },
-    {
-      'title': 'Medicines',
-      'available': '800 units',
-      'stockLevel': 0.45,
-      'category': 'First aid kits, antibiotics, ORS packs',
-      'icon': Icons.medical_information_rounded,
-      'color': Color(0xFFE53935),
-      'bgColor': Color(0xFFFFEBEE),
-    },
-    {
-      'title': 'Blankets',
-      'available': '600 units',
-      'stockLevel': 0.60,
-      'category': 'Warm winter and thermal shelter bedding',
-      'icon': Icons.bed_rounded,
-      'color': Color(0xFF0288D1),
-      'bgColor': Color(0xFFE0F7FA),
-    },
-    {
-      'title': 'Clothes',
-      'available': '900 units',
-      'stockLevel': 0.70,
-      'category': 'Adult & child emergency protective clothing',
-      'icon': Icons.checkroom_rounded,
-      'color': Color(0xFFFB8C00),
-      'bgColor': Color(0xFFFFEDD5),
-    },
-  ];
+  // Icon Name එක අනුව IconData එකක් ලබාදෙන Helper Function එක
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'water_drop':
+        return Icons.water_drop_rounded;
+      case 'medical':
+        return Icons.medical_information_rounded;
+      case 'bed':
+        return Icons.bed_rounded;
+      case 'clothes':
+        return Icons.checkroom_rounded;
+      case 'food':
+      default:
+        return Icons.lunch_dining_rounded;
+    }
+  }
 
-  void _showResourceDetails(BuildContext context, Map<String, dynamic> item) {
+  // Hex Color String එක Color Value එකක් බවට හරවන Helper Function එක
+  Color _parseColor(String? colorHex, Color defaultColor) {
+    if (colorHex == null || colorHex.isEmpty) return defaultColor;
+    try {
+      final hex = colorHex.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return defaultColor;
+    }
+  }
+
+  // Resource Request එක Firestore එකට Save කිරීමේ Method එක
+  Future<void> _requestResource(BuildContext context, String resourceId, String resourceTitle) async {
+    try {
+      await FirebaseFirestore.instance.collection('resource_requests').add({
+        'resourceId': resourceId,
+        'resourceTitle': resourceTitle,
+        'status': 'Pending',
+        'requestedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // BottomSheet එක Close කිරීම
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Resource request for $resourceTitle dispatched to central disaster hub.',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: AppColors.primaryNavy,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to send request: $e',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _showResourceDetails(BuildContext context, Map<String, dynamic> item, String docId) {
+    final IconData icon = _getIconData(item['icon'] ?? '');
+    final Color color = _parseColor(item['color'], const Color(0xFF2E7D32));
+    final Color bgColor = _parseColor(item['bgColor'], const Color(0xFFDCFCE7));
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -82,10 +105,10 @@ class ReliefResourcesScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: item['bgColor'] as Color,
+                      color: bgColor,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(item['icon'] as IconData, color: item['color'] as Color, size: 28),
+                    child: Icon(icon, color: color, size: 28),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -93,7 +116,7 @@ class ReliefResourcesScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['title'] as String,
+                          item['title'] ?? 'Resource',
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -101,11 +124,11 @@ class ReliefResourcesScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Current In Stock: ${item['available']}',
+                          'Current In Stock: ${item['available'] ?? "0 units"}',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: item['color'] as Color,
+                            color: color,
                           ),
                         ),
                       ],
@@ -120,23 +143,12 @@ class ReliefResourcesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                item['category'] as String,
+                item['category'] ?? 'General supplies',
                 style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Resource request dispatched to central disaster hub.',
-                        style: GoogleFonts.poppins(fontSize: 12),
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                onPressed: () => _requestResource(context, docId, item['title'] ?? 'Resource'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryNavy,
                   minimumSize: const Size(double.infinity, 48),
@@ -176,75 +188,113 @@ class ReliefResourcesScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        itemCount: _resources.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final item = _resources[index];
-          return GestureDetector(
-            onTap: () => _showResourceDetails(context, item),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.025),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+      // Firestore එකෙන් 'resources' Real-time Data Stream එකක් ලෙස ලබා ගැනීම
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('resources').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading resources: ${snapshot.error}',
+                style: GoogleFonts.poppins(color: Colors.red),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: item['bgColor'] as Color,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      item['icon'] as IconData,
-                      color: item['color'] as Color,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['title'] as String,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Available: ${item['available']}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textLight,
-                  ),
-                ],
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryNavy),
+            );
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          if (docs.isEmpty) {
+            return Center(
+              child: Text(
+                'No relief resources available right now.',
+                style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary),
               ),
-            ),
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final item = doc.data() as Map<String, dynamic>;
+
+              final IconData icon = _getIconData(item['icon'] ?? '');
+              final Color color = _parseColor(item['color'], const Color(0xFF2E7D32));
+              final Color bgColor = _parseColor(item['bgColor'], const Color(0xFFDCFCE7));
+
+              return GestureDetector(
+                onTap: () => _showResourceDetails(context, item, doc.id),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.025),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: color,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['title'] ?? 'Resource',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Available: ${item['available'] ?? "0 units"}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: AppColors.textLight,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
