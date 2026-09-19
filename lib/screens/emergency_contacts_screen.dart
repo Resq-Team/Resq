@@ -1,10 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_colors.dart';
 import '../models/emergency_contact.dart';
 
 class EmergencyContactsScreen extends StatelessWidget {
   const EmergencyContactsScreen({super.key});
+
+  // Direct Phone Call එක Dial කිරීමට භාවිතා කරන Helper Function එක
+  Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not launch dialer for $phoneNumber',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error placing call: $e',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   void _callNumber(BuildContext context, EmergencyContact contact) {
     showDialog(
@@ -84,17 +119,8 @@ class EmergencyContactsScreen extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Dialing ${contact.title} (${contact.number})...',
-                                style: GoogleFonts.poppins(fontSize: 13),
-                              ),
-                              backgroundColor: AppColors.emergencyRed,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                          Navigator.pop(context); // Dialog එක Close කිරීම
+                          _makePhoneCall(context, contact.number); // Direct Call කිරීම
                         },
                         icon: const Icon(Icons.call, size: 18, color: Colors.white),
                         label: Text(
@@ -215,7 +241,7 @@ class EmergencyContactsScreen extends StatelessWidget {
                   onTap: () => _callNumber(context, contact),
                   child: Container(
                     padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.emergencyRedLight,
                       shape: BoxShape.circle,
                     ),
