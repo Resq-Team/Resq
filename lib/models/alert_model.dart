@@ -1,20 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-
-enum AlertSeverity {
-  highRisk,
-  moderateRisk,
-  information,
-}
 
 class AlertModel {
   final String id;
   final String title;
-  final AlertSeverity severity;
-  final String severityLabel;
+  final String description;
   final String location;
   final String timeAgo;
-  final String description;
+  final String severityLabel;
+  final Color severityColor;
+  final Color badgeBgColor;
   final IconData icon;
   bool isRead;
   final bool isImportant;
@@ -22,78 +18,96 @@ class AlertModel {
   AlertModel({
     required this.id,
     required this.title,
-    required this.severity,
-    required this.severityLabel,
+    required this.description,
     required this.location,
     required this.timeAgo,
-    required this.description,
+    required this.severityLabel,
+    required this.severityColor,
+    required this.badgeBgColor,
     required this.icon,
     this.isRead = false,
     this.isImportant = false,
   });
 
-  Color get severityColor {
-    switch (severity) {
-      case AlertSeverity.highRisk:
-        return AppColors.highRisk;
-      case AlertSeverity.moderateRisk:
-        return AppColors.moderateRisk;
-      case AlertSeverity.information:
-        return AppColors.infoGreen;
+  // Firestore Document එකෙන් AlertModel object එකක් සාදා ගැනීම
+  factory AlertModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    return AlertModel(
+      id: doc.id,
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      location: data['location'] ?? '',
+      timeAgo: data['timeAgo'] ?? 'Just now',
+      severityLabel: data['severityLabel'] ?? 'Info',
+      severityColor: _parseColor(data['severityColor']),
+      badgeBgColor: _parseColor(data['badgeBgColor']).withOpacity(0.15),
+      icon: _parseIcon(data['icon']),
+      isRead: data['isRead'] ?? false,
+      isImportant: data['isImportant'] ?? false,
+    );
+  }
+
+  // Helper method for parsing colors from Firestore
+  static Color _parseColor(dynamic colorValue) {
+    if (colorValue is int) return Color(colorValue);
+    if (colorValue is String && colorValue.startsWith('#')) {
+      final hexCode = colorValue.replaceAll('#', '');
+      return Color(int.parse('FF$hexCode', radix: 16));
     }
+    return AppColors.emergencyRed; // Default color
   }
 
-  Color get badgeBgColor {
-    return severityColor.withOpacity(0.12);
+  // Helper method for parsing icons
+  static IconData _parseIcon(dynamic iconData) {
+    if (iconData is int) {
+      return IconData(iconData, fontFamily: 'MaterialIcons');
+    }
+    return Icons.warning_amber_rounded; // Default icon
   }
 
+  // Firestore එකේ දත්ත නොමැති විට හෝ Testing සඳහා Sample Data
   static List<AlertModel> getSampleAlerts() {
     return [
       AlertModel(
         id: '1',
-        title: 'Flood Warning',
-        severity: AlertSeverity.highRisk,
-        severityLabel: 'High Risk',
+        title: 'Severe Flood Warning',
+        description:
+            'Water levels rising rapidly along Kelani River. Low-lying areas are advised to evacuate to designated safe locations immediately.',
         location: 'Colombo District',
-        timeAgo: '2 min ago',
-        description: 'Kelani river water levels are rising rapidly. Residents in low-lying areas of Colombo and Wellampitiya are advised to evacuate immediately.',
-        icon: Icons.warning_rounded,
+        timeAgo: '10m ago',
+        severityLabel: 'High Severity',
+        severityColor: AppColors.emergencyRed,
+        badgeBgColor: AppColors.emergencyRed.withOpacity(0.12),
+        icon: Icons.flood_outlined,
         isRead: false,
         isImportant: true,
       ),
       AlertModel(
         id: '2',
-        title: 'Heavy Rain Alert',
-        severity: AlertSeverity.moderateRisk,
-        severityLabel: 'Moderate Risk',
-        location: 'Gampaha District',
-        timeAgo: '1 hour ago',
-        description: 'Continuous rainfall expected for the next 24 hours. High possibility of waterlogging on roads and minor inundation.',
-        icon: Icons.thunderstorm_rounded,
+        title: 'Landslide Risk Alert',
+        description:
+            'Heavy rainfall may trigger landslides in hilly areas. Residents should stay vigilant for signs of slope failure.',
+        location: 'Ratnapura & Kegalle',
+        timeAgo: '1h ago',
+        severityLabel: 'Medium Severity',
+        severityColor: Colors.orange,
+        badgeBgColor: Colors.orange.withOpacity(0.12),
+        icon: Icons.landscape_outlined,
         isRead: false,
-        isImportant: false,
-      ),
-      AlertModel(
-        id: '3',
-        title: 'Landslide Warning',
-        severity: AlertSeverity.highRisk,
-        severityLabel: 'High Risk',
-        location: 'Kandy District',
-        timeAgo: '3 hours ago',
-        description: 'NBRO issued Level 3 Red landslide alert for hill slopes in Kandy and surrounding divisional secretariats.',
-        icon: Icons.landscape_rounded,
-        isRead: true,
         isImportant: true,
       ),
       AlertModel(
-        id: '4',
-        title: 'Shelter Opened',
-        severity: AlertSeverity.information,
-        severityLabel: 'Information',
-        location: 'Matara District',
-        timeAgo: '5 hours ago',
-        description: 'Safe Haven Community Relief Shelter is now fully operational with food, medical aid, and 120 available beds.',
-        icon: Icons.home_work_rounded,
+        id: '3',
+        title: 'Heavy Rain & Wind Advisory',
+        description:
+            'Strong winds up to 50km/h expected during monsoon showers. Avoid standing near large trees or unstable structures.',
+        location: 'Western Province',
+        timeAgo: '3h ago',
+        severityLabel: 'Advisory',
+        severityColor: Colors.amber.shade700,
+        badgeBgColor: Colors.amber.withOpacity(0.12),
+        icon: Icons.air_rounded,
         isRead: true,
         isImportant: false,
       ),

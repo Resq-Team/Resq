@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../models/alert_model.dart';
@@ -17,27 +18,34 @@ class DisasterAlertsScreen extends StatefulWidget {
 
 class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
   int _selectedFilterIndex = 0; // 0: All, 1: Unread, 2: Important
-  late List<AlertModel> _alerts;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  @override
-  void initState() {
-    super.initState();
-    _alerts = AlertModel.getSampleAlerts();
+  // Firestore හි isRead status එක update කිරීම
+  Future<void> _markAlertAsRead(String alertId) async {
+    try {
+      await _firestore.collection('alerts').doc(alertId).update({
+        'isRead': true,
+      });
+    } catch (e) {
+      debugPrint('Error updating read status: $e');
+    }
   }
 
-  List<AlertModel> get _filteredAlerts {
+  // Filter Index එක අනුව Data filter කිරීම
+  List<AlertModel> _filterAlerts(List<AlertModel> alerts) {
     if (_selectedFilterIndex == 1) {
-      return _alerts.where((a) => !a.isRead).toList();
+      return alerts.where((a) => !a.isRead).toList();
     } else if (_selectedFilterIndex == 2) {
-      return _alerts.where((a) => a.isImportant).toList();
+      return alerts.where((a) => a.isImportant).toList();
     }
-    return _alerts;
+    return alerts;
   }
 
   void _showAlertDetails(AlertModel alert) {
-    setState(() {
-      alert.isRead = true;
-    });
+    // Open කරන විට Unread Alert එකක් නම් Read ලෙස Mark කිරීම
+    if (!alert.isRead) {
+      _markAlertAsRead(alert.id);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -241,14 +249,37 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
           ),
           const Divider(height: 1, color: AppColors.border),
 
-          // Alerts List
+          // Firestore Realtime Alerts Stream
           Expanded(
-            child: _filteredAlerts.isEmpty
-                ? Center(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('alerts')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // Database එකෙන් දත්ත ලැබුණු විට Model එකට Convert කර ගැනීම
+                List<AlertModel> fetchedAlerts = [];
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  fetchedAlerts = snapshot.data!.docs
+                      .map((doc) => AlertModel.fromFirestore(doc))
+                      .toList();
+                } else {
+                  // Database එක හිස් නම් Sample Alerts Fallback ලෙස පෙන්වීමට
+                  fetchedAlerts = AlertModel.getSampleAlerts();
+                }
+
+                final filteredList = _filterAlerts(fetchedAlerts);
+
+                if (filteredList.isEmpty) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.notifications_off_outlined,
                           size: 54,
                           color: AppColors.textLight,
@@ -263,16 +294,20 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                         ),
                       ],
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredAlerts.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final alert = _filteredAlerts[index];
-                      return _buildAlertCard(alert);
-                    },
-                  ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredList.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final alert = filteredList[index];
+                    return _buildAlertCard(alert);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
