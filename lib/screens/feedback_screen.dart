@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
@@ -31,13 +32,46 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     _selectedIssueType = _issueOptions[0];
   }
 
-  void _submitFeedback() {
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    super.dispose();
+  }
+
+  // Cloud Firestore වෙත Feedback එක Save गर्ने Async Function එක
+  Future<void> _submitFeedback() async {
+    final feedbackText = _feedbackController.text.trim();
+
+    // Feedback field එක හිස්ව තිබේ නම් validation message එකක් පෙන්වීමට
+    if (feedbackText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please write a few words about your experience.',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    try {
+      // Firebase Firestore එකෙහි 'feedbacks' Collection එකට Data Save කිරීම
+      await FirebaseFirestore.instance.collection('feedbacks').add({
+        'rating': _selectedRating,
+        'feedback': feedbackText,
+        'issueType': _selectedIssueType == 'Select issue type' ? null : _selectedIssueType,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
+      // Successful Submission Dialog එක
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -84,8 +118,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Close Dialog
+                      Navigator.pop(context); // Back to previous screen
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.emergencyRed,
@@ -108,7 +142,21 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           );
         },
       );
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to submit feedback: $e',
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: AppColors.emergencyRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
