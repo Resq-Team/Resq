@@ -1,17 +1,21 @@
-import 'services/connectivity_service.dart';
-import 'services/local_storage_service.dart';
-import 'services/sync_service.dart';
-import 'models/offline_data.dart';
-import 'widgets/connectivity_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'screens/splash_screen.dart';
+import 'services/local_storage_service.dart';
+import 'widgets/connectivity_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setPreferredOrientations([
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
@@ -24,25 +28,7 @@ Future<void> main() async {
   );
 
   await LocalStorageService.init();
-  final testSos = OfflineData(
-  id: 'SOS_TEST_001',
-  type: 'SOS',
-  data: {
-    'description': 'Test emergency request',
-    'priority': 'High',
-  },
-  createdAt: DateTime.now(),
-  syncStatus: 'pending',
-);
 
-await LocalStorageService.saveOfflineData(testSos);
-
-await SyncService.syncPendingData();
-  await SyncService.syncPendingData();
-
-
-await LocalStorageService.saveOfflineData(testSos);
- 
   runApp(const ResQApp());
 }
 
@@ -55,9 +41,16 @@ class ResQApp extends StatelessWidget {
       title: 'ResQ - Smart Disaster Relief',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const ConnectivityBanner(
-  child: SplashScreen(),
-),
+
+      // Keep ConnectivityBanner alive for the whole app,
+      // not only for SplashScreen.
+      builder: (context, child) {
+        return ConnectivityBanner(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+
+      home: const SplashScreen(),
     );
   }
 }
