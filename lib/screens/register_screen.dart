@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../services/auth_service.dart';
 import 'role_selection_screen.dart';
+
+// Change this to your own secret code and share it only with your team members
+const String kAdminInviteCode = 'RESQ-TEAM-2026';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,20 +20,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _inviteCodeController = TextEditingController();
+  final AuthService _authService = AuthService();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _showTeamCodeField = false; // Toggles the invite code field visibility
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      Future.delayed(const Duration(milliseconds: 900), () {
-        if (!mounted) return;
+
+      // Determine role: only assign 'admin' if the correct invite code was entered
+      String role = 'citizen';
+      if (_showTeamCodeField && _inviteCodeController.text.trim() == kAdminInviteCode) {
+        role = 'admin';
+      } else if (_showTeamCodeField && _inviteCodeController.text.trim().isNotEmpty) {
+        // They tried a code but got it wrong
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Invalid team invite code.',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            backgroundColor: AppColors.emergencyRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      try {
+        await _authService.register(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          role: role,
+        );
+
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
         );
-      });
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceAll('Exception: ', ''),
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            backgroundColor: AppColors.emergencyRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -218,7 +266,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       val == null || val.length < 6 ? 'Password must be at least 6 chars' : null,
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+
+                // Team/Admin toggle checkbox
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _showTeamCodeField,
+                      activeColor: AppColors.emergencyRed,
+                      onChanged: (val) {
+                        setState(() => _showTeamCodeField = val ?? false);
+                      },
+                    ),
+                    Expanded(
+                      child: Text(
+                        'I am a ResQ team member (have an invite code)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Invite code field - only shown when checkbox is ticked
+                if (_showTeamCodeField) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Team Invite Code',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _inviteCodeController,
+                    style: GoogleFonts.poppins(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Enter invite code',
+                      fillColor: Colors.white,
+                      filled: true,
+                      prefixIcon: const Icon(Icons.vpn_key_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
 
                 // Register Button
                 ElevatedButton(

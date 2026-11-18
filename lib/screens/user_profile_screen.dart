@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../services/auth_service.dart';
+import '../services/language_provider.dart';
 import 'settings_screen.dart';
 import 'offline_state_screen.dart';
 import 'syncing_state_screen.dart';
@@ -20,19 +23,61 @@ class UserProfileScreen extends StatefulWidget {
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isDarkMode = false;
+  final AuthService _authService = AuthService();
 
-  void _showEditProfileDialog() {
-    final nameCtrl = TextEditingController(text: 'Dumindu Chinthaka');
-    final phoneCtrl = TextEditingController(text: '071 234 5678');
+  // Holds the user's profile info fetched from Firestore
+  Map<String, dynamic>? _userProfile;
+  bool _isLoadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      final profile = await _authService.getUserProfile(user.uid);
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+          _isLoadingProfile = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => _isLoadingProfile = false);
+    }
+  }
+
+  // Convenience getters that fall back gracefully if data isn't loaded yet
+  String get _displayName =>
+      _userProfile?['name'] ??
+      _authService.currentUser?.displayName ??
+      'Guest User';
+
+  String get _displayEmail =>
+      _userProfile?['email'] ?? _authService.currentUser?.email ?? 'No email';
+
+  String get _displayRole => _userProfile?['role'] ?? 'citizen';
+
+  String get _avatarLetter =>
+      _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?';
+
+  void _showEditProfileDialog(LanguageProvider lang) {
+    final nameCtrl = TextEditingController(text: _displayName);
+    final phoneCtrl = TextEditingController(text: _userProfile?['phone'] ?? '');
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Edit Profile',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+            lang.getText('edit_profile'),
+            style:
+                GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -40,36 +85,42 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               TextField(
                 controller: nameCtrl,
                 style: GoogleFonts.poppins(fontSize: 13),
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                decoration:
+                    InputDecoration(labelText: lang.getText('full_name')),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: phoneCtrl,
                 style: GoogleFonts.poppins(fontSize: 13),
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                decoration:
+                    InputDecoration(labelText: lang.getText('phone_number')),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+              child: Text(lang.getText('cancel'),
+                  style: GoogleFonts.poppins(color: AppColors.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Profile information updated.', style: GoogleFonts.poppins(fontSize: 12)),
+                    content: Text(lang.getText('profile_updated_msg'),
+                        style: GoogleFonts.poppins(fontSize: 12)),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryNavy,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text('Save', style: GoogleFonts.poppins(color: Colors.white)),
+              child: Text(lang.getText('save'),
+                  style: GoogleFonts.poppins(color: Colors.white)),
             ),
           ],
         );
@@ -79,6 +130,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // LanguageProvider එක listen කරනවා
+    final lang = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -86,12 +140,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         elevation: 0,
         leading: widget.showBackButton
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white, size: 20),
                 onPressed: () => Navigator.pop(context),
               )
             : null,
         title: Text(
-          'My Profile',
+          lang.getText('my_profile'),
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -100,196 +155,215 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // User Header Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
+      body: _isLoadingProfile
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppColors.emergencyRedLight,
-                    child: Text(
-                      'S',
-                      style: GoogleFonts.poppins(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.emergencyRed,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Dumindu Chinthaka',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
+                  // User Header Card
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
-                        Container(
-                          margin: const EdgeInsets.symmetric(vertical: 2),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.emergencyRedLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 32,
+                          backgroundColor: AppColors.emergencyRedLight,
                           child: Text(
-                            'Disaster Victim / Citizen',
+                            _avatarLetter,
                             style: GoogleFonts.poppins(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
                               color: AppColors.emergencyRed,
                             ),
                           ),
                         ),
-                        Text(
-                          'dumindu@gmail.com',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Text(
-                          '071 234 5678',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textLight,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _displayName,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.emergencyRedLight,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _displayRole == 'citizen'
+                                      ? lang.getText('citizen_role')
+                                      : _displayRole,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.emergencyRed,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _displayEmail,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              if (_userProfile?['phone'] != null)
+                                Text(
+                                  _userProfile!['phone'],
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  // Profile Options
+                  _buildActionTile(
+                    icon: Icons.person_outline_rounded,
+                    title: lang.getText('edit_profile'),
+                    onTap: () => _showEditProfileDialog(lang),
+                  ),
+                  _buildActionTile(
+                    icon: Icons.notifications_none_rounded,
+                    title: lang.getText('notifications'),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(lang.getText('notifications_msg'),
+                              style: GoogleFonts.poppins(fontSize: 12)),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.palette_outlined,
+                    title: lang.getText('theme'),
+                    trailing: Text(
+                      _isDarkMode
+                          ? lang.getText('dark')
+                          : lang.getText('light'),
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    onTap: () {
+                      setState(() => _isDarkMode = !_isDarkMode);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '${lang.getText('theme_switched_msg')} ${_isDarkMode ? lang.getText('dark') : lang.getText('light')}',
+                              style: GoogleFonts.poppins(fontSize: 12)),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.lock_outline_rounded,
+                    title: lang.getText('change_password'),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(lang.getText('change_password_msg'),
+                              style: GoogleFonts.poppins(fontSize: 12)),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.settings_outlined,
+                    title: lang.getText('settings'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Demo Navigation to Offline & Sync States
+                  _buildActionTile(
+                    icon: Icons.wifi_off_rounded,
+                    title: lang.getText('offline_demo'),
+                    iconColor: AppColors.emergencyRed,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const OfflineStateScreen()),
+                      );
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.sync_rounded,
+                    title: lang.getText('sync_demo'),
+                    iconColor: const Color(0xFF1E88E5),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const SyncingStateScreen()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Logout
+                  _buildActionTile(
+                    icon: Icons.logout_rounded,
+                    title: lang.getText('logout'),
+                    iconColor: AppColors.emergencyRed,
+                    textColor: AppColors.emergencyRed,
+                    onTap: () async {
+                      await _authService.logout();
+                      if (!mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // Profile Options
-            _buildActionTile(
-              icon: Icons.person_outline_rounded,
-              title: 'Edit Profile',
-              onTap: _showEditProfileDialog,
-            ),
-            _buildActionTile(
-              icon: Icons.notifications_none_rounded,
-              title: 'Notifications',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Push notifications are active for high severity alerts.', style: GoogleFonts.poppins(fontSize: 12)),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-            _buildActionTile(
-              icon: Icons.palette_outlined,
-              title: 'Theme',
-              trailing: Text(
-                _isDarkMode ? 'Dark' : 'Light',
-                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              onTap: () {
-                setState(() => _isDarkMode = !_isDarkMode);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Theme switched to ${_isDarkMode ? "Dark" : "Light"} mode', style: GoogleFonts.poppins(fontSize: 12)),
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
-            ),
-            _buildActionTile(
-              icon: Icons.lock_outline_rounded,
-              title: 'Change Password',
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Password change verification code sent to your mobile.', style: GoogleFonts.poppins(fontSize: 12)),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-            _buildActionTile(
-              icon: Icons.settings_outlined,
-              title: 'Settings',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                );
-              },
-            ),
-
-            const SizedBox(height: 8),
-
-            // Demo Navigation to Offline & Sync States
-            _buildActionTile(
-              icon: Icons.wifi_off_rounded,
-              title: 'Offline State Demo',
-              iconColor: AppColors.emergencyRed,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OfflineStateScreen()),
-                );
-              },
-            ),
-            _buildActionTile(
-              icon: Icons.sync_rounded,
-              title: 'Data Sync State Demo',
-              iconColor: const Color(0xFF1E88E5),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SyncingStateScreen()),
-                );
-              },
-            ),
-
-            const SizedBox(height: 8),
-
-            // Logout
-            _buildActionTile(
-              icon: Icons.logout_rounded,
-              title: 'Logout',
-              iconColor: AppColors.emergencyRed,
-              textColor: AppColors.emergencyRed,
-              onTap: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 
@@ -303,23 +377,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: iconColor, size: 22),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: textColor,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ListTile(
+              leading: Icon(icon, color: iconColor, size: 22),
+              title: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+              trailing: trailing ??
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AppColors.textLight,
+                  ),
+            ),
           ),
         ),
-        trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textLight),
-        onTap: onTap,
       ),
     );
   }

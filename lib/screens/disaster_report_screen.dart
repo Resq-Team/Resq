@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../constants/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DisasterReportScreen extends StatefulWidget {
-  const DisasterReportScreen({super.key});
+  const DisasterReportScreen({Key? key}) : super(key: key);
 
   @override
   State<DisasterReportScreen> createState() => _DisasterReportScreenState();
@@ -11,448 +10,225 @@ class DisasterReportScreen extends StatefulWidget {
 
 class _DisasterReportScreenState extends State<DisasterReportScreen> {
   final _formKey = GlobalKey<FormState>();
-  String _selectedDisasterType = 'Flood';
-  final TextEditingController _descController = TextEditingController(
-    text: 'Heavy flooding in our area. People need immediate help.',
-  );
-  final TextEditingController _locationController = TextEditingController(
-    text: '123 Main Street, Colombo',
-  );
+
+  String? _selectedDisasterType;
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _peopleAffectedController = TextEditingController();
+  bool _isUrgent = false;
+  bool _isLoading = false; // Loading indicator එක සඳහා
 
   final List<String> _disasterTypes = [
-    'Flood',
-    'Landslide',
-    'Heavy Rain',
-    'Fire Breakout',
-    'Severe Storm',
-    'Earthquake',
-    'Building Collapse',
-    'Other Emergency',
+    'Flood (ගංවතුර)',
+    'Landslide (නායයාම්)',
+    'Tsunami (සුනාමි)',
+    'Fire (ගිනි ගැනීම්)',
+    'Cyclone / Storm (කුණාටු)',
+    'Other (වෙනත්)',
   ];
 
-  final List<Map<String, dynamic>> _attachedImages = [
-    {
-      'id': '1',
-      'label': 'Water level road',
-      'color': Color(0xFF90CAF9),
-      'icon': Icons.water_rounded,
-    },
-    {
-      'id': '2',
-      'label': 'House surroundings',
-      'color': Color(0xFF80CBC4),
-      'icon': Icons.home_rounded,
-    },
-    {
-      'id': '3',
-      'label': 'Submerged vehicle',
-      'color': Color(0xFFB0BEC5),
-      'icon': Icons.directions_car_rounded,
-    },
-  ];
+  @override
+  void dispose() {
+    _locationController.dispose();
+    _descriptionController.dispose();
+    _peopleAffectedController.dispose();
+    super.dispose();
+  }
 
-  bool _isSubmitting = false;
+  // Firebase Firestore වෙත Data එකතු කිරීමේ Method එක
+  Future<void> _submitReport() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  void _addImageMock() {
     setState(() {
-      _attachedImages.add({
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'label': 'Photo ${_attachedImages.length + 1}',
-        'color': Color(0xFFFFCC80),
-        'icon': Icons.image_rounded,
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('disaster_reports').add({
+        'disasterType': _selectedDisasterType,
+        'location': _locationController.text.trim(),
+        'peopleAffected': int.tryParse(_peopleAffectedController.text.trim()) ?? 0,
+        'description': _descriptionController.text.trim(),
+        'isUrgent': _isUrgent,
+        'status': 'Pending', // Default status: Pending / Responded / Resolved
+        'createdAt': FieldValue.serverTimestamp(),
       });
-    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Photo attached successfully',
-          style: GoogleFonts.poppins(fontSize: 13),
-        ),
-        backgroundColor: AppColors.primaryNavy,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _removeImage(int index) {
-    setState(() {
-      _attachedImages.removeAt(index);
-    });
-  }
-
-  void _submitReport() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSubmitting = true);
-
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        if (!mounted) return;
-        setState(() => _isSubmitting = false);
-
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              content: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDCFCE7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.infoGreen,
-                        size: 48,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Report Submitted!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your disaster report #DR-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)} has been recorded and transmitted to emergency dispatchers.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context); // Close dialog
-                        Navigator.pop(context); // Return back to Home
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.emergencyRed,
-                        minimumSize: const Size(double.infinity, 46),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Back to Home',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Disaster report submitted successfully to Firebase!'),
+            backgroundColor: Colors.green,
+          ),
         );
-      });
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        title: const Text('Report a Disaster'),
+        backgroundColor: Colors.redAccent,
+        foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Disaster Report',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Disaster Type Section
-              Text(
-                'Disaster Type',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              Material(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 30),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Please provide accurate information for quick emergency response.',
+                          style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+              const SizedBox(height: 20),
+
+              const Text('Disaster Type *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 6),
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: DropdownButtonFormField<String>(
                     value: _selectedDisasterType,
-                    isExpanded: true,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.textSecondary,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Select disaster type',
                     ),
                     items: _disasterTypes.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(
-                          type,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      );
+                      return DropdownMenuItem(value: type, child: Text(type));
                     }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedDisasterType = val);
-                      }
-                    },
+                    onChanged: (val) => setState(() => _selectedDisasterType = val),
+                    validator: (val) => val == null ? 'Please select a disaster type' : null,
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 20),
-
-              // Description Section
-              Text(
-                'Description',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descController,
-                maxLines: 4,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Enter incident details, hazards, or stranded count...',
-                  fillColor: Colors.white,
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                ),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Please enter description' : null,
-              ),
-
-              const SizedBox(height: 20),
-
-              // Upload Images Section
-              Text(
-                'Upload Images',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 86,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    // Add Photo Camera Box
-                    GestureDetector(
-                      onTap: _addImageMock,
-                      child: Container(
-                        width: 86,
-                        height: 86,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: AppColors.border,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.camera_alt_outlined,
-                              color: AppColors.textSecondary,
-                              size: 28,
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Add Photo',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              const Text('Location / Landmark *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 6),
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: TextFormField(
+                    controller: _locationController,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'e.g., Near Kaduwela bridge',
+                      suffixIcon: Icon(Icons.my_location, color: Colors.blue),
                     ),
-                    const SizedBox(width: 12),
-
-                    // Preview Thumbnails
-                    ..._attachedImages.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final img = entry.value;
-                      return Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 86,
-                        height: 86,
-                        decoration: BoxDecoration(
-                          color: img['color'] as Color,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: Icon(
-                                img['icon'] as IconData,
-                                color: Colors.white,
-                                size: 36,
-                              ),
-                            ),
-                            // Delete badge
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () => _removeImage(idx),
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
+                    validator: (val) => (val == null || val.isEmpty) ? 'Please enter the location' : null,
+                  ),
                 ),
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 20),
-
-              // Location Section
-              Text(
-                'Location',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              const Text('Estimated People Affected', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 6),
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: TextFormField(
+                    controller: _peopleAffectedController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'e.g., 50',
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _locationController,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  fillColor: Colors.white,
-                  filled: true,
-                  suffixIcon: const Icon(
-                    Icons.location_on,
-                    color: AppColors.emergencyRed,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
+              const SizedBox(height: 16),
+
+              const Text('Description / Details *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 6),
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Describe the current situation and immediate needs...',
+                    ),
+                    validator: (val) => (val == null || val.isEmpty) ? 'Please enter a description' : null,
                   ),
                 ),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Please enter location' : null,
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 36),
-
-              // Submit Report Button
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.emergencyRed,
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
+              Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                child: CheckboxListTile(
+                  title: const Text('Mark as High Urgency / Life Threatening', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  activeColor: Colors.redAccent,
+                  value: _isUrgent,
+                  onChanged: (val) => setState(() => _isUrgent = val ?? false),
                 ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2.5,
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: _isLoading ? null : _submitReport,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'SUBMIT REPORT',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
-                      )
-                    : Text(
-                        'Submit Report',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                ),
               ),
             ],
           ),

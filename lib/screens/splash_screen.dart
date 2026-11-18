@@ -73,7 +73,9 @@ class _SplashScreenState extends State<SplashScreen>
               // Centered ResQ Emblem Logo
               Hero(
                 tag: 'app_logo',
-                child: ResqLogo(size: size.width * 0.36),
+               child: ResqLogo(
+  size: (size.width < size.height ? size.width : size.height) * 0.3,
+),
               ),
               const Spacer(flex: 3),
               // Bottom Loading Section

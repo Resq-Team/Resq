@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_colors.dart';
 
 class DonationsScreen extends StatefulWidget {
@@ -12,6 +13,9 @@ class DonationsScreen extends StatefulWidget {
 class _DonationsScreenState extends State<DonationsScreen> {
   int _donationType = 0; // 0: Money, 1: Items
   final TextEditingController _amountController = TextEditingController(text: '2500');
+  final TextEditingController _itemsController = TextEditingController();
+  final TextEditingController _donorNameController = TextEditingController();
+
   String _selectedPurpose = 'Flood Relief';
   String _selectedPaymentMethod = 'Credit / Debit Card';
   bool _isProcessing = false;
@@ -31,74 +35,145 @@ class _DonationsScreenState extends State<DonationsScreen> {
     'Google Pay / Apple Pay',
   ];
 
-  void _submitDonation() {
-    setState(() => _isProcessing = true);
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!mounted) return;
-      setState(() => _isProcessing = false);
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _itemsController.dispose();
+    _donorNameController.dispose();
+    super.dispose();
+  }
 
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.emergencyRedLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.volunteer_activism_rounded,
-                      color: AppColors.emergencyRed,
-                      size: 44,
+  // Firestore එකට Donation Data Save කිරීමේ Method එක
+  Future<void> _submitDonation() async {
+    // Validation Checks
+    if (_donationType == 0) {
+      if (_amountController.text.trim().isEmpty ||
+          double.tryParse(_amountController.text.trim()) == null ||
+          double.parse(_amountController.text.trim()) <= 0) {
+        _showSnackBar('Please enter a valid amount');
+        return;
+      }
+    } else {
+      if (_itemsController.text.trim().isEmpty) {
+        _showSnackBar('Please enter item details and quantity');
+        return;
+      }
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final String donorName = _donorNameController.text.trim().isEmpty
+          ? 'Anonymous Donor'
+          : _donorNameController.text.trim();
+
+      // Firestore හි 'donations' collection එකට Record එක එකතු කිරීම
+      await FirebaseFirestore.instance.collection('donations').add({
+        'type': _donationType == 0 ? 'Money' : 'Items',
+        'amount': _donationType == 0 ? double.tryParse(_amountController.text.trim()) ?? 0.0 : 0.0,
+        'itemDetails': _donationType == 1 ? _itemsController.text.trim() : '',
+        'purpose': _selectedPurpose,
+        'paymentMethod': _donationType == 0 ? _selectedPaymentMethod : 'N/A (Physical Items)',
+        'donorName': donorName,
+        'status': 'Completed',
+        'transactionId': 'TXN_${DateTime.now().millisecondsSinceEpoch}',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      // Success Dialog එක පෙන්වීම
+      _showSuccessDialog();
+
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Failed to save donation: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.poppins()),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.emergencyRedLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.volunteer_activism_rounded,
+                    color: AppColors.emergencyRed,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Donation Received!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _donationType == 0
+                      ? 'Thank you for contributing LKR ${_amountController.text} towards $_selectedPurpose. Record has been saved.'
+                      : 'Thank you for donating items towards $_selectedPurpose. Our team will contact you soon.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Dialog එක Close කිරීම
+                    Navigator.pop(context); // Screen එකෙන් Back යාම
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.emergencyRed,
+                    minimumSize: const Size(double.infinity, 46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Donation Received!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Thank you for contributing LKR ${_amountController.text} towards $_selectedPurpose. An official receipt has been issued.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.emergencyRed,
-                      minimumSize: const Size(double.infinity, 46),
-                    ),
-                    child: Text(
-                      'Done',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      );
-    });
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -183,7 +258,38 @@ class _DonationsScreenState extends State<DonationsScreen> {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // Donor Name Field (Optional)
+            Text(
+              'Your Name (Optional)',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _donorNameController,
+              style: GoogleFonts.poppins(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Leave blank to donate anonymously',
+                hintStyle: GoogleFonts.poppins(fontSize: 12, color: AppColors.textLight),
+                fillColor: Colors.white,
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             if (_donationType == 0) ...[
               // Amount (LKR)
@@ -269,6 +375,7 @@ class _DonationsScreenState extends State<DonationsScreen> {
               ),
               const SizedBox(height: 8),
               TextFormField(
+                controller: _itemsController,
                 maxLines: 3,
                 style: GoogleFonts.poppins(fontSize: 13),
                 decoration: InputDecoration(
@@ -276,6 +383,10 @@ class _DonationsScreenState extends State<DonationsScreen> {
                   fillColor: Colors.white,
                   filled: true,
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.border),
                   ),
@@ -319,41 +430,42 @@ class _DonationsScreenState extends State<DonationsScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // Payment Method Dropdown
-            Text(
-              'Payment Method',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedPaymentMethod,
-                  isExpanded: true,
-                  items: _paymentMethods.map((m) {
-                    return DropdownMenuItem<String>(
-                      value: m,
-                      child: Text(m, style: GoogleFonts.poppins(fontSize: 13)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedPaymentMethod = val);
-                  },
+            if (_donationType == 0) ...[
+              const SizedBox(height: 20),
+              // Payment Method Dropdown
+              Text(
+                'Payment Method',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedPaymentMethod,
+                    isExpanded: true,
+                    items: _paymentMethods.map((m) {
+                      return DropdownMenuItem<String>(
+                        value: m,
+                        child: Text(m, style: GoogleFonts.poppins(fontSize: 13)),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedPaymentMethod = val);
+                    },
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 36),
 

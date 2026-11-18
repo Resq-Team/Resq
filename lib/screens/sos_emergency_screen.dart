@@ -27,8 +27,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
   double? _latitude;
   double? _longitude;
 
-  final ConnectivityService _connectivityService =
-      ConnectivityService();
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   @override
   void initState() {
@@ -50,8 +49,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
     try {
       // Check whether location services are enabled.
-      bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         if (mounted) {
@@ -65,8 +63,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
       }
 
       // Check permission.
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
       // Ask for permission if needed.
       if (permission == LocationPermission.denied) {
@@ -98,8 +95,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
       }
 
       // Get REAL GPS position.
-      final Position position =
-          await Geolocator.getCurrentPosition(
+      final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
@@ -112,8 +108,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
         setState(() {
           _isGettingLocation = false;
 
-          _locationText =
-              '${position.latitude.toStringAsFixed(6)}, '
+          _locationText = '${position.latitude.toStringAsFixed(6)}, '
               '${position.longitude.toStringAsFixed(6)}';
         });
       }
@@ -129,8 +124,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
       // Try last known location as a fallback.
       try {
-        final Position? lastPosition =
-            await Geolocator.getLastKnownPosition();
+        final Position? lastPosition = await Geolocator.getLastKnownPosition();
 
         if (lastPosition != null) {
           _latitude = lastPosition.latitude;
@@ -140,8 +134,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
             setState(() {
               _isGettingLocation = false;
 
-              _locationText =
-                  '${lastPosition.latitude.toStringAsFixed(6)}, '
+              _locationText = '${lastPosition.latitude.toStringAsFixed(6)}, '
                   '${lastPosition.longitude.toStringAsFixed(6)}';
             });
           }
@@ -184,8 +177,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
      */
     final Position? position = await _getCurrentLocation();
 
-    final sosId =
-        'SOS_${DateTime.now().millisecondsSinceEpoch}';
+    final sosId = 'SOS_${DateTime.now().millisecondsSinceEpoch}';
 
     final sosData = OfflineData(
       id: sosId,
@@ -195,8 +187,8 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
         'latitude': position?.latitude ?? _latitude,
         'longitude': position?.longitude ?? _longitude,
 
-        'locationAvailable': position != null ||
-            (_latitude != null && _longitude != null),
+        'locationAvailable':
+            position != null || (_latitude != null && _longitude != null),
 
         'userName': 'Anonymous',
         'userPhone': 'Not provided',
@@ -226,8 +218,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
     // STEP 2: CHECK INTERNET
     // ==========================================================
 
-    final bool isOnline =
-        await _connectivityService.isOnline();
+    final bool isOnline = await _connectivityService.isOnline();
 
     // ==========================================================
     // STEP 3: OFFLINE
@@ -250,11 +241,9 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
       await SyncService.syncPendingData();
 
       // Check whether this SOS is still pending.
-      final pending =
-          LocalStorageService.getPendingData();
+      final pending = LocalStorageService.getPendingData();
 
-      final stillPending =
-          pending.any((item) => item.id == sosId);
+      final stillPending = pending.any((item) => item.id == sosId);
 
       if (stillPending) {
         debugPrint(
@@ -328,8 +317,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
-                        color:
-                            AppColors.emergencyRedLight,
+                        color: AppColors.emergencyRedLight,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -348,8 +336,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color:
-                            AppColors.emergencyRed,
+                        color: AppColors.emergencyRed,
                       ),
                     ),
 
@@ -361,8 +348,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 13,
-                        color:
-                            AppColors.textSecondary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
 
@@ -374,8 +360,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 44,
                         fontWeight: FontWeight.w900,
-                        color:
-                            AppColors.emergencyRed,
+                        color: AppColors.emergencyRed,
                       ),
                     ),
 
@@ -398,21 +383,16 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                                 ).pop();
                               }
                             },
-                            style:
-                                OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  AppColors.textSecondary,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
                               side: const BorderSide(
                                 color: AppColors.border,
                               ),
-                              padding:
-                                  const EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 vertical: 12,
                               ),
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
                                   10,
                                 ),
                               ),
@@ -420,8 +400,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                             child: Text(
                               'Cancel',
                               style: GoogleFonts.poppins(
-                                fontWeight:
-                                    FontWeight.w600,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -445,18 +424,13 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
                               await _sendSos();
                             },
-                            style:
-                                ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  AppColors.emergencyRed,
-                              padding:
-                                  const EdgeInsets.symmetric(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.emergencyRed,
+                              padding: const EdgeInsets.symmetric(
                                 vertical: 12,
                               ),
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
                                   10,
                                 ),
                               ),
@@ -464,8 +438,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                             child: Text(
                               'Send Now',
                               style: GoogleFonts.poppins(
-                                fontWeight:
-                                    FontWeight.w600,
+                                fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
                             ),
@@ -495,8 +468,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
     });
 
     try {
-      final bool synced =
-          await _saveAndSyncSos();
+      final bool synced = await _saveAndSyncSos();
 
       if (!mounted) return;
 
@@ -546,13 +518,10 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     color: AppColors.border,
-                    borderRadius:
-                        BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: const BoxDecoration(
@@ -565,51 +534,38 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                     size: 48,
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Text(
                   'SOS Alert Dispatched!',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color:
-                        AppColors.textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
                   'Your emergency alert has been successfully synchronized with the disaster management system.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color:
-                        AppColors.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        AppColors.primaryNavy,
-                    minimumSize:
-                        const Size(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryNavy,
+                    minimumSize: const Size(
                       double.infinity,
                       48,
                     ),
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
                         12,
                       ),
                     ),
@@ -617,13 +573,11 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   child: Text(
                     'Dismiss',
                     style: GoogleFonts.poppins(
-                      fontWeight:
-                          FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
               ],
             ),
@@ -659,13 +613,10 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   height: 4,
                   decoration: BoxDecoration(
                     color: AppColors.border,
-                    borderRadius:
-                        BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: const BoxDecoration(
@@ -678,51 +629,38 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                     size: 48,
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Text(
                   'SOS Saved Offline',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color:
-                        AppColors.textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
                   'Your SOS information and GPS location have been safely saved on this device. It will be synchronized automatically when the internet connection becomes available.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color:
-                        AppColors.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        AppColors.emergencyRed,
-                    minimumSize:
-                        const Size(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.emergencyRed,
+                    minimumSize: const Size(
                       double.infinity,
                       48,
                     ),
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
                         12,
                       ),
                     ),
@@ -730,13 +668,11 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   child: Text(
                     'Dismiss',
                     style: GoogleFonts.poppins(
-                      fontWeight:
-                          FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
               ],
             ),
@@ -753,9 +689,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          AppColors.background,
-
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           // ======================================================
@@ -764,23 +698,15 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
           Container(
             padding: EdgeInsets.only(
-              top:
-                  MediaQuery.of(context)
-                      .padding
-                      .top +
-                  8,
+              top: MediaQuery.of(context).padding.top + 8,
               left: 16,
               right: 16,
               bottom: 20,
             ),
-            decoration:
-                const BoxDecoration(
-              color:
-                  AppColors.emergencyRed,
-              borderRadius:
-                  BorderRadius.vertical(
-                bottom:
-                    Radius.circular(24),
+            decoration: const BoxDecoration(
+              color: AppColors.emergencyRed,
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(24),
               ),
             ),
             child: Row(
@@ -792,29 +718,22 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                     );
                   },
                   icon: const Icon(
-                    Icons
-                        .arrow_back_ios_new_rounded,
+                    Icons.arrow_back_ios_new_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
                 ),
-
                 Expanded(
                   child: Text(
                     'Emergency SOS',
-                    textAlign:
-                        TextAlign.center,
-                    style:
-                        GoogleFonts.poppins(
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
                       fontSize: 18,
-                      fontWeight:
-                          FontWeight.w700,
-                      color:
-                          Colors.white,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-
                 const SizedBox(
                   width: 48,
                 ),
@@ -828,8 +747,7 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
           Expanded(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 24,
               ),
               child: Column(
@@ -840,15 +758,11 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
                   Text(
                     'Tap the button in case\nof an emergency',
-                    textAlign:
-                        TextAlign.center,
-                    style:
-                        GoogleFonts.poppins(
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
                       fontSize: 16,
-                      fontWeight:
-                          FontWeight.w600,
-                      color:
-                          AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                       height: 1.4,
                     ),
                   ),
@@ -864,17 +778,14 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                         ? const SizedBox(
                             width: 160,
                             height: 160,
-                            child:
-                                CircularProgressIndicator(
+                            child: CircularProgressIndicator(
                               strokeWidth: 6,
-                              color: AppColors
-                                  .emergencyRed,
+                              color: AppColors.emergencyRed,
                             ),
                           )
                         : PulseSosButton(
                             size: 160,
-                            onTap:
-                                _triggerSos,
+                            onTap: _triggerSos,
                           ),
                   ),
 
@@ -885,34 +796,25 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   // ==================================================
 
                   Container(
-                    width:
-                        double.infinity,
-                    padding:
-                        const EdgeInsets.all(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(
                       16,
                     ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          Colors.white,
-                      borderRadius:
-                          BorderRadius.circular(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(
                         16,
                       ),
                       border: Border.all(
-                        color:
-                            AppColors.border,
+                        color: AppColors.border,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors
-                              .black
-                              .withValues(
+                          color: Colors.black.withValues(
                             alpha: 0.04,
                           ),
                           blurRadius: 10,
-                          offset:
-                              const Offset(
+                          offset: const Offset(
                             0,
                             4,
                           ),
@@ -922,24 +824,16 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                     child: Row(
                       children: [
                         Container(
-                          padding:
-                              const EdgeInsets
-                                  .all(
+                          padding: const EdgeInsets.all(
                             10,
                           ),
-                          decoration:
-                              const BoxDecoration(
-                            color: AppColors
-                                .emergencyRedLight,
-                            shape:
-                                BoxShape.circle,
+                          decoration: const BoxDecoration(
+                            color: AppColors.emergencyRedLight,
+                            shape: BoxShape.circle,
                           ),
-                          child:
-                              const Icon(
-                            Icons
-                                .location_on_rounded,
-                            color: AppColors
-                                .emergencyRed,
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.emergencyRed,
                             size: 24,
                           ),
                         ),
@@ -950,51 +844,36 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
 
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Your Location',
-                                style: GoogleFonts
-                                    .poppins(
+                                style: GoogleFonts.poppins(
                                   fontSize: 12,
-                                  fontWeight:
-                                      FontWeight
-                                          .w500,
-                                  color: AppColors
-                                      .textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
-
                               const SizedBox(
                                 height: 4,
                               ),
-
                               Text(
                                 _isGettingLocation
                                     ? 'Getting GPS location...'
                                     : _locationText,
                                 maxLines: 2,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-                                style: GoogleFonts
-                                    .poppins(
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
                                   fontSize: 13,
-                                  fontWeight:
-                                      FontWeight
-                                          .w600,
+                                  fontWeight: FontWeight.w600,
                                   color: _locationText ==
-                                          'Location permission denied' ||
-                                      _locationText ==
-                                          'Location service is turned off' ||
-                                      _locationText ==
-                                          'Unable to get GPS location'
-                                      ? AppColors
-                                          .emergencyRed
-                                      : AppColors
-                                          .textPrimary,
+                                              'Location permission denied' ||
+                                          _locationText ==
+                                              'Location service is turned off' ||
+                                          _locationText ==
+                                              'Unable to get GPS location'
+                                      ? AppColors.emergencyRed
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -1010,31 +889,23 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth:
-                                      2,
-                                  color: AppColors
-                                      .emergencyRed,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.emergencyRed,
                                 ),
                               )
                             : IconButton(
-                                onPressed:
-                                    _isSending
-                                        ? null
-                                        : () {
-                                            _getCurrentLocation();
-                                          },
-                                icon:
-                                    const Icon(
-                                  Icons
-                                      .gps_fixed_rounded,
-                                  color: AppColors
-                                      .emergencyRed,
+                                onPressed: _isSending
+                                    ? null
+                                    : () {
+                                        _getCurrentLocation();
+                                      },
+                                icon: const Icon(
+                                  Icons.gps_fixed_rounded,
+                                  color: AppColors.emergencyRed,
                                   size: 20,
                                 ),
-                                tooltip:
-                                    'Refresh GPS location',
+                                tooltip: 'Refresh GPS location',
                               ),
                       ],
                     ),
@@ -1049,46 +920,30 @@ class _SosEmergencyScreenState extends State<SosEmergencyScreen> {
                   // ==================================================
 
                   ElevatedButton(
-                    onPressed:
-                        _isSending
-                            ? null
-                            : _triggerSos,
-                    style:
-                        ElevatedButton.styleFrom(
-                      backgroundColor:
-                          AppColors
-                              .emergencyRed,
-                      minimumSize:
-                          const Size(
+                    onPressed: _isSending ? null : _triggerSos,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.emergencyRed,
+                      minimumSize: const Size(
                         double.infinity,
                         54,
                       ),
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
                           14,
                         ),
                       ),
                       elevation: 4,
-                      shadowColor:
-                          AppColors
-                              .emergencyRed
-                              .withValues(
+                      shadowColor: AppColors.emergencyRed.withValues(
                         alpha: 0.4,
                       ),
                     ),
                     child: Text(
                       'Send SOS',
-                      style:
-                          GoogleFonts.poppins(
+                      style: GoogleFonts.poppins(
                         fontSize: 16,
-                        fontWeight:
-                            FontWeight.w700,
-                        color:
-                            Colors.white,
-                        letterSpacing:
-                            0.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),

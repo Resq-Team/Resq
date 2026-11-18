@@ -1,11 +1,86 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
+import '../services/language_provider.dart';
 import '../services/local_storage_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  final Map<String, String> _languages = const {
+    'en': 'English',
+    'si': 'සිංහල (Sinhala)',
+    'ta': 'தமிழ் (Tamil)',
+  };
+
+  void _showLanguageSelector(BuildContext context) {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 20,
+            horizontal: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Language',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._languages.entries.map((entry) {
+                final isSelected =
+                    languageProvider.currentLanguage == entry.key;
+
+                return ListTile(
+                  title: Text(
+                    entry.value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? AppColors.emergencyRed
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.emergencyRed,
+                        )
+                      : null,
+                  onTap: () {
+                    languageProvider.changeLanguage(entry.key);
+                    Navigator.pop(context);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _clearOfflineCache(BuildContext context) async {
     final shouldClear = await showDialog<bool>(
@@ -21,24 +96,20 @@ class SettingsScreen extends StatelessWidget {
           content: Text(
             'This will remove data that has already been synchronized. '
             'Pending offline SOS requests will not be deleted.',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-            ),
+            style: GoogleFonts.poppins(fontSize: 13),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
+              onPressed: () =>
+                  Navigator.pop(dialogContext, false),
               child: Text(
                 'Cancel',
                 style: GoogleFonts.poppins(),
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
+              onPressed: () =>
+                  Navigator.pop(dialogContext, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.emergencyRed,
                 foregroundColor: Colors.white,
@@ -55,9 +126,7 @@ class SettingsScreen extends StatelessWidget {
       },
     );
 
-    if (shouldClear != true) {
-      return;
-    }
+    if (shouldClear != true) return;
 
     try {
       await LocalStorageService.clearSyncedData();
@@ -90,6 +159,8 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -104,7 +175,7 @@ class SettingsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Settings',
+          lang.getText('settings'),
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -116,34 +187,33 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // General Section
           Text(
-            'General',
+            lang.getText('general'),
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
             ),
           ),
-
           const SizedBox(height: 8),
 
           _buildSettingsGroup([
             _buildSettingsRow(
               icon: Icons.language_rounded,
-              title: 'Language',
-              trailingText: 'English',
-              onTap: () {},
+              title: lang.getText('language'),
+              trailingText:
+                  _languages[lang.currentLanguage]?.split(' ').first,
+              onTap: () => _showLanguageSelector(context),
             ),
             _buildSettingsRow(
               icon: Icons.brightness_6_rounded,
-              title: 'Theme',
+              title: lang.getText('theme'),
               trailingText: 'Light',
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.notifications_active_outlined,
-              title: 'Notification Settings',
+              title: lang.getText('notifications'),
               onTap: () {},
               showDivider: false,
             ),
@@ -151,7 +221,7 @@ class SettingsScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // Offline & Storage Section
+          // Pair 4: Offline Storage
           Text(
             'Offline & Storage',
             style: GoogleFonts.poppins(
@@ -160,7 +230,6 @@ class SettingsScreen extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-
           const SizedBox(height: 8),
 
           _buildSettingsGroup([
@@ -168,41 +237,37 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.delete_sweep_outlined,
               title: 'Clear Offline Cache',
               trailingText: 'Synced data',
-              onTap: () {
-                _clearOfflineCache(context);
-              },
+              onTap: () => _clearOfflineCache(context),
               showDivider: false,
             ),
           ]),
 
           const SizedBox(height: 24),
 
-          // Account & Legal Section
           Text(
-            'Account',
+            lang.getText('account'),
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
             ),
           ),
-
           const SizedBox(height: 8),
 
           _buildSettingsGroup([
             _buildSettingsRow(
               icon: Icons.privacy_tip_outlined,
-              title: 'Privacy Policy',
+              title: lang.getText('privacy'),
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.description_outlined,
-              title: 'Terms of Service',
+              title: lang.getText('terms'),
               onTap: () {},
             ),
             _buildSettingsRow(
               icon: Icons.info_outline_rounded,
-              title: 'About Resq App',
+              title: lang.getText('about'),
               trailingText: 'v1.0.0',
               onTap: () {},
               showDivider: false,
@@ -223,9 +288,7 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 
@@ -273,7 +336,6 @@ class SettingsScreen extends StatelessWidget {
           ),
           onTap: onTap,
         ),
-
         if (showDivider)
           const Divider(
             height: 1,
