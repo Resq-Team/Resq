@@ -1,3 +1,4 @@
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -25,71 +26,96 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
 
   StreamSubscription<List<ConnectivityResult>>? _subscription;
 
+  Timer? _syncTimer;
+
   bool _isOnline = true;
+  bool _isCheckingConnection = false;
 
   @override
   void initState() {
     super.initState();
+
+    debugPrint('CONNECTIVITY BANNER INITIALIZED');
 
     _checkInitialConnection();
 
     _subscription =
         _connectivityService.connectivityStream.listen(
       (results) async {
-        final actuallyOnline =
-            await _connectivityService.isOnline();
+        debugPrint('CONNECTIVITY EVENT: $results');
 
-        if (!mounted) return;
+        await _checkConnectionAndSync();
+      },
+      onError: (error) {
+        debugPrint('CONNECTIVITY STREAM ERROR: $error');
+      },
+    );
 
-        setState(() {
-          _isOnline = actuallyOnline;
-        });
+    // Retry pending data every 15 seconds.
+    _syncTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (timer) async {
+        debugPrint('PERIODIC SYNC RETRY');
 
-        if (actuallyOnline) {
-          try {
-            await SyncService.syncPendingData();
-
-            debugPrint(
-              'Automatic synchronization completed.',
-            );
-          } catch (e) {
-            debugPrint(
-              'Automatic synchronization failed: $e',
-            );
-          }
-        }
+        await _checkConnectionAndSync();
       },
     );
   }
 
   Future<void> _checkInitialConnection() async {
-    final online =
-        await _connectivityService.isOnline();
+    debugPrint('CHECKING INITIAL INTERNET CONNECTION');
 
-    if (!mounted) return;
+    await _checkConnectionAndSync();
+  }
 
-    setState(() {
-      _isOnline = online;
-    });
+  Future<void> _checkConnectionAndSync() async {
+    // Prevent overlapping connection checks.
+    if (_isCheckingConnection) return;
 
-    if (online) {
-      try {
+    _isCheckingConnection = true;
+
+    try {
+      final actuallyOnline =
+          await _connectivityService.isOnline();
+
+      debugPrint('INTERNET STATUS: $actuallyOnline');
+
+      if (!mounted) return;
+
+      if (_isOnline != actuallyOnline) {
+        setState(() {
+          _isOnline = actuallyOnline;
+        });
+      }
+
+      if (actuallyOnline) {
+        debugPrint('INTERNET AVAILABLE: Checking pending SOS');
+
         await SyncService.syncPendingData();
 
-        debugPrint(
-          'Initial synchronization completed.',
-        );
-      } catch (e) {
-        debugPrint(
-          'Initial synchronization failed: $e',
-        );
+        debugPrint('SYNC ATTEMPT COMPLETED');
+
+        final remaining =
+            SyncService.getPendingData().length;
+
+        debugPrint('PENDING RECORDS REMAINING: $remaining');
+      } else {
+        debugPrint('DEVICE IS OFFLINE');
       }
+    } catch (e) {
+      debugPrint('CONNECTION CHECK OR SYNC FAILED: $e');
+    } finally {
+      _isCheckingConnection = false;
     }
   }
 
   @override
   void dispose() {
+    debugPrint('CONNECTIVITY BANNER DISPOSED');
+
     _subscription?.cancel();
+    _syncTimer?.cancel();
+
     super.dispose();
   }
 
@@ -122,7 +148,6 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
               ),
             ),
           ),
-
         Expanded(
           child: widget.child,
         ),
