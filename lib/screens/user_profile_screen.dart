@@ -404,6 +404,196 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
+  void _showChangePasswordDialog(LanguageProvider lang, bool isDark) {
+    final currentPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool isSaving = false;
+
+    final dialogBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isSaving,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                lang.getText('change_password'),
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: textColor,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: currentPassCtrl,
+                      enabled: !isSaving,
+                      obscureText: true,
+                      style: GoogleFonts.poppins(fontSize: 13, color: textColor),
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        labelStyle: GoogleFonts.poppins(fontSize: 12, color: secondaryColor),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: newPassCtrl,
+                      enabled: !isSaving,
+                      obscureText: true,
+                      style: GoogleFonts.poppins(fontSize: 13, color: textColor),
+                      decoration: InputDecoration(
+                        labelText: 'New Password (min 6 chars)',
+                        labelStyle: GoogleFonts.poppins(fontSize: 12, color: secondaryColor),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmPassCtrl,
+                      enabled: !isSaving,
+                      obscureText: true,
+                      style: GoogleFonts.poppins(fontSize: 13, color: textColor),
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password',
+                        labelStyle: GoogleFonts.poppins(fontSize: 12, color: secondaryColor),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    lang.getText('cancel'),
+                    style: GoogleFonts.poppins(color: secondaryColor),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final currentPass = currentPassCtrl.text;
+                          final newPass = newPassCtrl.text;
+                          final confirmPass = confirmPassCtrl.text;
+
+                          if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Please fill in all password fields.',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (newPass.length < 6) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'New password must be at least 6 characters.',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (newPass != confirmPass) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'New passwords do not match.',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSaving = true);
+
+                          try {
+                            await _authService.changePassword(
+                              currentPassword: currentPass,
+                              newPassword: newPass,
+                            );
+
+                            if (!mounted) return;
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Password updated successfully!',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            setDialogState(() => isSaving = false);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceAll('Exception: ', ''),
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryNavy,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          lang.getText('save'),
+                          style: GoogleFonts.poppins(color: Colors.white),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
@@ -628,6 +818,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     icon: Icons.lock_outline_rounded,
                     title: lang.getText('change_password'),
                     isDark: isDark,
+<<<<<<< HEAD
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -639,6 +830,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                       );
                     },
+=======
+                    onTap: () => _showChangePasswordDialog(lang, isDark),
+>>>>>>> 1bb428d (Add change password feature with re-authentication)
                   ),
                   _buildActionTile(
                     icon: Icons.settings_outlined,

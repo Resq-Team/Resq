@@ -148,6 +148,31 @@ class AuthService {
     }
   }
 
+  /// Re-authenticates with current password and updates to new password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        throw Exception('No logged-in user found.');
+      }
+
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_mapAuthError(e.code));
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
   /// Logs in an existing user with email & password
   Future login({
     required String email,
@@ -196,9 +221,11 @@ class AuthService {
       case 'user-not-found':
         return 'No account found with this email.';
       case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+        return 'Incorrect current password. Please try again.';
       case 'invalid-credential':
-        return 'Incorrect email or password.';
+        return 'Incorrect current password or credentials.';
+      case 'requires-recent-login':
+        return 'Please log in again before changing your password.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       default:
