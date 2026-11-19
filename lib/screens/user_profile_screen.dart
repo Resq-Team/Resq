@@ -60,6 +60,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   String get _displayRole =>
       _userProfile?['role'] ?? 'citizen';
 
+  String? get _profileImageUrl =>
+      _userProfile?['profileImageUrl'] ?? _authService.currentUser?.photoURL;
+
   String get _avatarLetter =>
       _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?';
 
@@ -168,17 +171,58 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: AppColors.emergencyRedLight,
-                          child: Text(
-                            _avatarLetter,
-                            style: GoogleFonts.poppins(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.emergencyRed,
-                            ),
-                          ),
+                        // Profile Picture / Avatar Preview
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                              ? Image.network(
+                                  _profileImageUrl!,
+                                  width: 64,
+                                  height: 64,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      width: 64,
+                                      height: 64,
+                                      color: AppColors.emergencyRedLight,
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.emergencyRed,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) => CircleAvatar(
+                                    radius: 32,
+                                    backgroundColor: AppColors.emergencyRedLight,
+                                    child: Text(
+                                      _avatarLetter,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.emergencyRed,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : CircleAvatar(
+                                  radius: 32,
+                                  backgroundColor: AppColors.emergencyRedLight,
+                                  child: Text(
+                                    _avatarLetter,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.emergencyRed,
+                                    ),
+                                  ),
+                                ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
