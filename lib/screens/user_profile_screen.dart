@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
@@ -24,9 +27,10 @@ class UserProfileScreen extends StatefulWidget {
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isDarkMode = false;
   final AuthService _authService = AuthService();
+  final ImagePicker _picker = ImagePicker();
 
   // Holds the user's profile info fetched from Firestore
-  Map<String, dynamic>? _userProfile;
+  Map _userProfile = {};
   bool _isLoadingProfile = true;
 
   @override
@@ -35,13 +39,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _loadUserProfile();
   }
 
-  Future<void> _loadUserProfile() async {
+  Future _loadUserProfile() async {
     final user = _authService.currentUser;
     if (user != null) {
       final profile = await _authService.getUserProfile(user.uid);
       if (mounted) {
         setState(() {
-          _userProfile = profile;
+          _userProfile = profile is Map ? profile : {};
           _isLoadingProfile = false;
         });
       }
@@ -52,71 +56,291 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   // Convenience getters that fall back gracefully if data isn't loaded yet
   String get _displayName =>
-      _userProfile?['name'] ?? _authService.currentUser?.displayName ?? 'Guest User';
+      _userProfile['name']?.toString() ??
+      _authService.currentUser?.displayName ??
+      'Guest User';
 
   String get _displayEmail =>
-      _userProfile?['email'] ?? _authService.currentUser?.email ?? 'No email';
+      _userProfile['email']?.toString() ??
+      _authService.currentUser?.email ??
+      'No email';
 
   String get _displayRole =>
-      _userProfile?['role'] ?? 'citizen';
+      _userProfile['role']?.toString() ?? 'citizen';
 
   String? get _profileImageUrl =>
-      _userProfile?['profileImageUrl'] ?? _authService.currentUser?.photoURL;
+      _userProfile['profileImageUrl']?.toString() ??
+      _authService.currentUser?.photoURL;
 
   String get _avatarLetter =>
       _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?';
 
+  Future _pickProfileImage(ImageSource source) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+    );
+    if (pickedFile == null) return null;
+
+    if (kIsWeb) {
+      return await pickedFile.readAsBytes();
+    } else {
+      return File(pickedFile.path);
+    }
+  }
+
+  Widget _buildDialogAvatar(dynamic pickedImage) {
+    if (pickedImage != null) {
+      if (kIsWeb) {
+        return CircleAvatar(
+          radius: 42,
+          backgroundColor: AppColors.emergencyRedLight,
+          backgroundImage: MemoryImage(pickedImage as Uint8List),
+        );
+      } else {
+        return CircleAvatar(
+          radius: 42,
+          backgroundColor: AppColors.emergencyRedLight,
+          backgroundImage: FileImage(pickedImage as File),
+        );
+      }
+    }
+
+    if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 42,
+        backgroundColor: AppColors.emergencyRedLight,
+        backgroundImage: NetworkImage(_profileImageUrl!),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 42,
+      backgroundColor: AppColors.emergencyRedLight,
+      child: Text(
+        _avatarLetter,
+        style: GoogleFonts.poppins(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: AppColors.emergencyRed,
+        ),
+      ),
+    );
+  }
+
   void _showEditProfileDialog(LanguageProvider lang) {
-    final nameCtrl = TextEditingController(text: _displayName);
-    final phoneCtrl = TextEditingController(text: _userProfile?['phone'] ?? '');
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    final nameCtrl = TextEditingController(
+      text: _displayName == 'Guest User' ? '' : _displayName,
+    );
+    final phoneCtrl = TextEditingController(
+      text: _userProfile['phone']?.toString() ?? '',
+    );
+    dynamic pickedImage;
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            lang.getText('edit_profile'),
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                style: GoogleFonts.poppins(fontSize: 13),
-                decoration: InputDecoration(labelText: lang.getText('full_name')),
+      barrierDismissible: !isSaving,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future selectSource(ImageSource source) async {
+              final img = await _pickProfileImage(source);
+              if (img != null) {
+                setDialogState(() => pickedImage = img);
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                lang.getText('edit_profile'),
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                style: GoogleFonts.poppins(fontSize: 13),
-                decoration: InputDecoration(labelText: lang.getText('phone_number')),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Profile Image Picker & Preview
+                    Stack(
+                      children: [
+                        _buildDialogAvatar(pickedImage),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: PopupMenuButton(
+                            enabled: !isSaving,
+                            onSelected: (val) {
+                              if (val is ImageSource) {
+                                selectSource(val);
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: ImageSource.gallery,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.photo_library_rounded, size: 18),
+                                    const SizedBox(width: 8),
+                                    Text('Gallery', style: GoogleFonts.poppins(fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: ImageSource.camera,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.camera_alt_rounded, size: 18),
+                                    const SizedBox(width: 8),
+                                    Text('Camera', style: GoogleFonts.poppins(fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            child: Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryNavy,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 15,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: nameCtrl,
+                      enabled: !isSaving,
+                      style: GoogleFonts.poppins(fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: lang.getText('full_name'),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneCtrl,
+                      enabled: !isSaving,
+                      keyboardType: TextInputType.phone,
+                      style: GoogleFonts.poppins(fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: lang.getText('phone_number'),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(lang.getText('cancel'), style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(lang.getText('profile_updated_msg'), style: GoogleFonts.poppins(fontSize: 12)),
-                    behavior: SnackBarBehavior.floating,
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    lang.getText('cancel'),
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryNavy,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: Text(lang.getText('save'), style: GoogleFonts.poppins(color: Colors.white)),
-            ),
-          ],
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final updatedName = nameCtrl.text.trim();
+                          final updatedPhone = phoneCtrl.text.trim();
+
+                          if (updatedName.isEmpty) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Please enter your name.',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSaving = true);
+
+                          try {
+                            final result = await _authService.updateUserProfile(
+                              uid: user.uid,
+                              name: updatedName,
+                              phone: updatedPhone,
+                              newProfileImageFile: pickedImage,
+                              existingImageUrl: _profileImageUrl,
+                            );
+
+                            if (!mounted) return;
+                            setState(() {
+                              _userProfile = {
+                                ..._userProfile,
+                                'name': result['name'],
+                                'phone': result['phone'],
+                                'profileImageUrl': result['profileImageUrl'],
+                              };
+                            });
+
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  lang.getText('profile_updated_msg'),
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            setDialogState(() => isSaving = false);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceAll('Exception: ', ''),
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                                backgroundColor: AppColors.emergencyRed,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryNavy,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          lang.getText('save'),
+                          style: GoogleFonts.poppins(color: Colors.white),
+                        ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -124,7 +348,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // LanguageProvider එක listen කරනවා
     final lang = context.watch<LanguageProvider>();
 
     return Scaffold(
@@ -262,9 +485,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   color: AppColors.textSecondary,
                                 ),
                               ),
-                              if (_userProfile?['phone'] != null)
+                              if (_userProfile['phone'] != null &&
+                                  _userProfile['phone'].toString().isNotEmpty)
                                 Text(
-                                  _userProfile!['phone'],
+                                  _userProfile['phone'].toString(),
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     color: AppColors.textLight,

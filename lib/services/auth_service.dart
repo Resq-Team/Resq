@@ -9,9 +9,9 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Cloudinary විස්තර (ඔබේ Cloud Name සහ Upload Preset මෙහි දමන්න)
-  final String _cloudName = "expfwhzh";       // මෙතනට ඔබේ Cloud Name එක දමන්න
-  final String _uploadPreset = "resq12"; // මෙතනට ඔබේ Unsigned Upload Preset එක දමන්න
+  // Cloudinary විස්තර
+  final String _cloudName = "expfwhzh";
+  final String _uploadPreset = "resq12";
 
   /// Returns the currently logged-in user, or null if not logged in
   User? get currentUser => _auth.currentUser;
@@ -102,6 +102,49 @@ class AuthService {
       throw Exception(_mapAuthError(e.code));
     } catch (e) {
       throw Exception('Failed to register: $e');
+    }
+  }
+
+  /// Updates user name, phone, and optionally uploads a new profile image to Cloudinary
+  Future updateUserProfile({
+    required String uid,
+    required String name,
+    required String phone,
+    dynamic newProfileImageFile,
+    String? existingImageUrl,
+  }) async {
+    try {
+      String imageUrl = existingImageUrl ?? '';
+
+      if (newProfileImageFile != null) {
+        final uploadedUrl = await _uploadProfileImage(newProfileImageFile);
+        if (uploadedUrl != null && uploadedUrl.toString().isNotEmpty) {
+          imageUrl = uploadedUrl.toString();
+        }
+      }
+
+      await _firestore.collection('users').doc(uid).set({
+        'name': name,
+        'phone': phone,
+        'profileImageUrl': imageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final current = _auth.currentUser;
+      if (current != null && current.uid == uid) {
+        await current.updateDisplayName(name);
+        if (imageUrl.isNotEmpty) {
+          await current.updatePhotoURL(imageUrl);
+        }
+      }
+
+      return {
+        'name': name,
+        'phone': phone,
+        'profileImageUrl': imageUrl,
+      };
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
     }
   }
 
