@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/alert_model.dart';
+import '../services/theme_provider.dart';
 
 class DisasterAlertsScreen extends StatefulWidget {
   final bool showBackButton;
@@ -20,7 +22,6 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
   int _selectedFilterIndex = 0; // 0: All, 1: Unread, 2: Important
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Firestore හි isRead status එක update කිරීම
   Future<void> _markAlertAsRead(String alertId) async {
     try {
       await _firestore.collection('alerts').doc(alertId).update({
@@ -31,7 +32,6 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
     }
   }
 
-  // Filter Index එක අනුව Data filter කිරීම
   List<AlertModel> _filterAlerts(List<AlertModel> alerts) {
     if (_selectedFilterIndex == 1) {
       return alerts.where((a) => !a.isRead).toList();
@@ -41,16 +41,20 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
     return alerts;
   }
 
-  void _showAlertDetails(AlertModel alert) {
-    // Open කරන විට Unread Alert එකක් නම් Read ලෙස Mark කිරීම
+  void _showAlertDetails(AlertModel alert, bool isDark) {
     if (!alert.isRead) {
       _markAlertAsRead(alert.id);
     }
 
+    final sheetBgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final borderColor = isDark ? Colors.white12 : AppColors.border;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: sheetBgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -66,7 +70,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: borderColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -96,14 +100,14 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: primaryTextColor,
                           ),
                         ),
                         Text(
                           '${alert.location} • ${alert.timeAgo}',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: secondaryTextColor,
                           ),
                         ),
                       ],
@@ -127,14 +131,14 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              const Divider(color: AppColors.divider),
+              Divider(color: borderColor),
               const SizedBox(height: 12),
               Text(
                 'Incident Details & Advisory',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: primaryTextColor,
                 ),
               ),
               const SizedBox(height: 6),
@@ -142,7 +146,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                 alert.description,
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: AppColors.textSecondary,
+                  color: secondaryTextColor,
                   height: 1.5,
                 ),
               ),
@@ -169,8 +173,8 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                         style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primaryNavy,
-                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: isDark ? Colors.white : AppColors.primaryNavy,
+                        side: BorderSide(color: borderColor),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -210,10 +214,18 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    final bgColor = isDark ? const Color(0xFF121212) : AppColors.background;
+    final barColor = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : AppColors.border;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final mutedTextColor = isDark ? Colors.white54 : AppColors.textLight;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: isDark ? const Color(0xFF1A1A2E) : AppColors.primaryNavy,
         elevation: 0,
         leading: widget.showBackButton
             ? IconButton(
@@ -233,23 +245,20 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
       ),
       body: Column(
         children: [
-          // Filter Tabs (All, Unread, Important)
           Container(
-            color: Colors.white,
+            color: barColor,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
-                _buildFilterTab(0, 'All'),
+                _buildFilterTab(0, 'All', isDark),
                 const SizedBox(width: 10),
-                _buildFilterTab(1, 'Unread'),
+                _buildFilterTab(1, 'Unread', isDark),
                 const SizedBox(width: 10),
-                _buildFilterTab(2, 'Important'),
+                _buildFilterTab(2, 'Important', isDark),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
-
-          // Firestore Realtime Alerts Stream
+          Divider(height: 1, color: borderColor),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
@@ -261,14 +270,12 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                // Database එකෙන් දත්ත ලැබුණු විට Model එකට Convert කර ගැනීම
                 List<AlertModel> fetchedAlerts = [];
                 if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
                   fetchedAlerts = snapshot.data!.docs
                       .map((doc) => AlertModel.fromFirestore(doc))
                       .toList();
                 } else {
-                  // Database එක හිස් නම් Sample Alerts Fallback ලෙස පෙන්වීමට
                   fetchedAlerts = AlertModel.getSampleAlerts();
                 }
 
@@ -279,17 +286,17 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.notifications_off_outlined,
                           size: 54,
-                          color: AppColors.textLight,
+                          color: mutedTextColor,
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'No alerts found in this category',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: secondaryTextColor,
                           ),
                         ),
                       ],
@@ -303,7 +310,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final alert = filteredList[index];
-                    return _buildAlertCard(alert);
+                    return _buildAlertCard(alert, isDark);
                   },
                 );
               },
@@ -314,7 +321,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
     );
   }
 
-  Widget _buildFilterTab(int index, String label) {
+  Widget _buildFilterTab(int index, String label, bool isDark) {
     final isSelected = _selectedFilterIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -326,7 +333,9 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
             color: isSelected ? AppColors.emergencyRed : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? AppColors.emergencyRed : AppColors.border,
+              color: isSelected
+                  ? AppColors.emergencyRed
+                  : (isDark ? Colors.white24 : AppColors.border),
             ),
           ),
           child: Text(
@@ -335,7 +344,9 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
             style: GoogleFonts.poppins(
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.white70 : AppColors.textSecondary),
             ),
           ),
         ),
@@ -343,21 +354,27 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
     );
   }
 
-  Widget _buildAlertCard(AlertModel alert) {
+  Widget _buildAlertCard(AlertModel alert, bool isDark) {
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : AppColors.border;
+    final primaryTextColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final mutedTextColor = isDark ? Colors.white54 : AppColors.textLight;
+
     return GestureDetector(
-      onTap: () => _showAlertDetails(alert),
+      onTap: () => _showAlertDetails(alert, isDark),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: !alert.isRead ? alert.severityColor.withOpacity(0.35) : AppColors.border,
+            color: !alert.isRead ? alert.severityColor.withOpacity(0.45) : borderColor,
             width: !alert.isRead ? 1.2 : 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -366,7 +383,6 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Severity Color Icon Box
             Container(
               width: 44,
               height: 44,
@@ -381,8 +397,6 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
               ),
             ),
             const SizedBox(width: 12),
-
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +409,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: primaryTextColor,
                           ),
                         ),
                       ),
@@ -403,7 +417,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                         alert.timeAgo,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: AppColors.textLight,
+                          color: mutedTextColor,
                         ),
                       ),
                     ],
@@ -422,7 +436,7 @@ class _DisasterAlertsScreenState extends State<DisasterAlertsScreen> {
                     alert.location,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor,
                     ),
                   ),
                 ],

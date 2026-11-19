@@ -7,7 +7,9 @@ import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../services/theme_provider.dart';
 
 class LiveLocationScreen extends StatefulWidget {
   final bool showBackButton;
@@ -50,14 +52,14 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
   }
 
   // 1. GPS Permissions and Initial Position Setup
-  Future<void> _checkPermissionsAndGetLocation() async {
+  Future _checkPermissionsAndGetLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) _showSnackBar('Location services are disabled.');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
@@ -66,18 +68,17 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         if (mounted) _showSnackBar('Location permissions are denied.');
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
       if (mounted) _showSnackBar('Location permissions are permanently denied.');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    // Geolocator v13+ Settings
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 10,
@@ -114,12 +115,12 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
   void _startLiveLocationUpdates() {
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Battery saving optimization
+      distanceFilter: 10,
     );
 
     _positionStreamSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
-    ).listen((Position position) {
+    ).listen((position) {
       if (_isSharing && mounted) {
         setState(() {
           _currentPosition = position;
@@ -131,7 +132,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
   }
 
   // 3. Save / Sync Coordinates to Cloud Firestore
-  Future<void> _saveLocationToFirestore(Position position) async {
+  Future _saveLocationToFirestore(Position position) async {
     try {
       final userId = _auth.currentUser?.uid ?? 'guest_user';
 
@@ -152,15 +153,15 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
   }
 
   // 4. Reverse Geocoding (Coordinates to Readable Address)
-  Future<void> _getAddressFromLatLng(Position position) async {
+  Future _getAddressFromLatLng(Position position) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
+      List placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
 
       if (placemarks.isNotEmpty && mounted) {
-        Placemark place = placemarks[0];
+        final place = placemarks[0];
         setState(() {
           _currentAddress =
               '${place.street ?? ''}, ${place.subLocality ?? ''}, ${place.locality ?? ''}';
@@ -197,14 +198,22 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF1F5F9);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : AppColors.border;
+    final primaryTextColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     final userLatLng = _currentPosition != null
         ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
         : const LatLng(6.9271, 79.8612);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: isDark ? const Color(0xFF1A1A2E) : AppColors.primaryNavy,
         elevation: 0,
         leading: widget.showBackButton
             ? IconButton(
@@ -226,7 +235,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                // OpenStreetMap Tile Layer (Updated to Voyager CartoDB tiles to fix web CORS/ClientException issue)
+                // OpenStreetMap Tile Layer
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
@@ -238,7 +247,6 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                       urlTemplate: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
                       userAgentPackageName: 'com.resq.app',
                     ),
-                    // Route Polyline to Rescue Team
                     if (_rescueTeamLocation != null)
                       PolylineLayer(
                         polylines: [
@@ -249,10 +257,8 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                           ),
                         ],
                       ),
-                    // Map Markers
                     MarkerLayer(
                       markers: [
-                        // User GPS Location Marker
                         Marker(
                           point: userLatLng,
                           width: 60,
@@ -284,7 +290,6 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                             ],
                           ),
                         ),
-                        // Rescue Team Alpha Marker
                         if (_rescueTeamLocation != null)
                           Marker(
                             point: _rescueTeamLocation!,
@@ -321,11 +326,12 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardColor,
                       borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderColor),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withOpacity(0.12),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -351,7 +357,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                                  color: primaryTextColor,
                                 ),
                               ),
                               Text(
@@ -360,7 +366,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                                     : 'Awaiting signal...',
                                 style: GoogleFonts.poppins(
                                   fontSize: 10,
-                                  color: AppColors.textSecondary,
+                                  color: secondaryTextColor,
                                 ),
                               ),
                             ],
@@ -377,23 +383,38 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                   top: 16,
                   child: Column(
                     children: [
-                      _buildMapFab(Icons.add, () {
-                        _mapController.move(
-                          _mapController.camera.center,
-                          _mapController.camera.zoom + 1,
-                        );
-                      }),
+                      _buildMapFab(
+                        Icons.add,
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        iconColor: isDark ? Colors.white : AppColors.primaryNavy,
+                        onTap: () {
+                          _mapController.move(
+                            _mapController.camera.center,
+                            _mapController.camera.zoom + 1,
+                          );
+                        },
+                      ),
                       const SizedBox(height: 8),
-                      _buildMapFab(Icons.remove, () {
-                        _mapController.move(
-                          _mapController.camera.center,
-                          _mapController.camera.zoom - 1,
-                        );
-                      }),
+                      _buildMapFab(
+                        Icons.remove,
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        iconColor: isDark ? Colors.white : AppColors.primaryNavy,
+                        onTap: () {
+                          _mapController.move(
+                            _mapController.camera.center,
+                            _mapController.camera.zoom - 1,
+                          );
+                        },
+                      ),
                       const SizedBox(height: 8),
                       _buildMapFab(
                         Icons.my_location_rounded,
-                        _centerToCurrentLocation,
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        iconColor: isDark ? Colors.white : AppColors.primaryNavy,
+                        onTap: _centerToCurrentLocation,
                       ),
                     ],
                   ),
@@ -407,16 +428,16 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardColor,
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withOpacity(0.14),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -429,7 +450,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
+                                color: secondaryTextColor,
                               ),
                             ),
                             Row(
@@ -439,7 +460,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: _isSharing ? AppColors.infoGreen : AppColors.textLight,
+                                    color: _isSharing ? AppColors.infoGreen : secondaryTextColor,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -447,7 +468,7 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                                   width: 8,
                                   height: 8,
                                   decoration: BoxDecoration(
-                                    color: _isSharing ? AppColors.infoGreen : AppColors.textLight,
+                                    color: _isSharing ? AppColors.infoGreen : secondaryTextColor,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -456,20 +477,17 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        // Fixed: Wrapped with Material for proper InkSplash effect without assertion warnings
                         Material(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                           clipBehavior: Clip.antiAlias,
                           child: ListTile(
                             contentPadding: EdgeInsets.zero,
-                            onTap: () {
-                              // Optional action when clicking on team item
-                            },
+                            onTap: () {},
                             leading: Container(
                               padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFDBEAFE),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF192C42) : const Color(0xFFDBEAFE),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -483,20 +501,20 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: primaryTextColor,
                               ),
                             ),
                             subtitle: Text(
                               '2.4 km away • ETA 8 mins',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: secondaryTextColor,
                               ),
                             ),
-                            trailing: const Icon(
+                            trailing: Icon(
                               Icons.arrow_forward_ios_rounded,
                               size: 14,
-                              color: AppColors.textLight,
+                              color: secondaryTextColor,
                             ),
                           ),
                         ),
@@ -505,7 +523,6 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
                           onPressed: () {
                             setState(() => _isSharing = !_isSharing);
 
-                            // Update sharing state in Firestore
                             final userId = _auth.currentUser?.uid ?? 'guest_user';
                             _firestore.collection('live_locations').doc(userId).update({
                               'isSharing': _isSharing,
@@ -545,25 +562,31 @@ class _LiveLocationScreenState extends State<LiveLocationScreen> {
     );
   }
 
-  Widget _buildMapFab(IconData icon, VoidCallback onTap) {
+  Widget _buildMapFab(
+    IconData icon, {
+    required Color cardColor,
+    required Color borderColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Icon(icon, color: AppColors.primaryNavy, size: 20),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
     );
   }

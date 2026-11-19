@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/language_provider.dart';
+import '../services/theme_provider.dart';
 import 'settings_screen.dart';
 import 'offline_state_screen.dart';
 import 'syncing_state_screen.dart';
@@ -25,11 +26,9 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  bool _isDarkMode = false;
   final AuthService _authService = AuthService();
   final ImagePicker _picker = ImagePicker();
 
-  // Holds the user's profile info fetched from Firestore
   Map _userProfile = {};
   bool _isLoadingProfile = true;
 
@@ -54,7 +53,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
-  // Convenience getters that fall back gracefully if data isn't loaded yet
   String get _displayName =>
       _userProfile['name']?.toString() ??
       _authService.currentUser?.displayName ??
@@ -164,7 +162,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Profile Image Picker & Preview
                     Stack(
                       children: [
                         _buildDialogAvatar(pickedImage),
@@ -218,7 +215,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     TextField(
                       controller: nameCtrl,
                       enabled: !isSaving,
@@ -349,11 +345,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+
+    // Dark Mode සහ Light Mode සඳහා Dynamic Colors
+    final bgColor = isDark ? const Color(0xFF121212) : AppColors.background;
+    final cardBgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : AppColors.border;
+    final primaryTextColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: isDark ? const Color(0xFF1A1A2E) : AppColors.primaryNavy,
         elevation: 0,
         leading: widget.showBackButton
             ? IconButton(
@@ -381,9 +386,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardBgColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: borderColor),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.03),
@@ -394,7 +399,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     child: Row(
                       children: [
-                        // Profile Picture / Avatar Preview
                         ClipRRect(
                           borderRadius: BorderRadius.circular(32),
                           child: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
@@ -457,7 +461,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
+                                  color: primaryTextColor,
                                 ),
                               ),
                               Container(
@@ -482,7 +486,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 _displayEmail,
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: secondaryTextColor,
                                 ),
                               ),
                               if (_userProfile['phone'] != null &&
@@ -491,7 +495,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                   _userProfile['phone'].toString(),
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
-                                    color: AppColors.textLight,
+                                    color: isDark ? Colors.white54 : AppColors.textLight,
                                   ),
                                 ),
                             ],
@@ -507,11 +511,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   _buildActionTile(
                     icon: Icons.person_outline_rounded,
                     title: lang.getText('edit_profile'),
+                    isDark: isDark,
                     onTap: () => _showEditProfileDialog(lang),
                   ),
                   _buildActionTile(
                     icon: Icons.notifications_none_rounded,
                     title: lang.getText('notifications'),
+                    isDark: isDark,
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -524,15 +530,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   _buildActionTile(
                     icon: Icons.palette_outlined,
                     title: lang.getText('theme'),
+                    isDark: isDark,
                     trailing: Text(
-                      _isDarkMode ? lang.getText('dark') : lang.getText('light'),
-                      style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+                      isDark ? lang.getText('dark') : lang.getText('light'),
+                      style: GoogleFonts.poppins(fontSize: 12, color: secondaryTextColor),
                     ),
                     onTap: () {
-                      setState(() => _isDarkMode = !_isDarkMode);
+                      final nextDark = !isDark;
+                      themeProvider.toggleTheme(nextDark);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('${lang.getText('theme_switched_msg')} ${_isDarkMode ? lang.getText('dark') : lang.getText('light')}', style: GoogleFonts.poppins(fontSize: 12)),
+                          content: Text(
+                            '${lang.getText('theme_switched_msg')} ${nextDark ? lang.getText('dark') : lang.getText('light')}',
+                            style: GoogleFonts.poppins(fontSize: 12),
+                          ),
                           behavior: SnackBarBehavior.floating,
                           duration: const Duration(seconds: 1),
                         ),
@@ -542,6 +553,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   _buildActionTile(
                     icon: Icons.lock_outline_rounded,
                     title: lang.getText('change_password'),
+                    isDark: isDark,
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -554,6 +566,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   _buildActionTile(
                     icon: Icons.settings_outlined,
                     title: lang.getText('settings'),
+                    isDark: isDark,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -569,6 +582,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     icon: Icons.wifi_off_rounded,
                     title: lang.getText('offline_demo'),
                     iconColor: AppColors.emergencyRed,
+                    isDark: isDark,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -580,6 +594,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     icon: Icons.sync_rounded,
                     title: lang.getText('sync_demo'),
                     iconColor: const Color(0xFF1E88E5),
+                    isDark: isDark,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -596,6 +611,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     title: lang.getText('logout'),
                     iconColor: AppColors.emergencyRed,
                     textColor: AppColors.emergencyRed,
+                    isDark: isDark,
                     onTap: () async {
                       await _authService.logout();
                       if (!mounted) return;
@@ -616,29 +632,33 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildActionTile({
     required IconData icon,
     required String title,
-    Color iconColor = AppColors.primaryNavy,
-    Color textColor = AppColors.textPrimary,
+    required bool isDark,
+    Color? iconColor,
+    Color? textColor,
     Widget? trailing,
     required VoidCallback onTap,
   }) {
+    final effectiveIconColor = iconColor ?? (isDark ? Colors.white70 : AppColors.primaryNavy);
+    final effectiveTextColor = textColor ?? (isDark ? Colors.white : AppColors.textPrimary);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: isDark ? Colors.white12 : AppColors.border),
       ),
       child: ListTile(
-        leading: Icon(icon, color: iconColor, size: 22),
+        leading: Icon(icon, color: effectiveIconColor, size: 22),
         title: Text(
           title,
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: textColor,
+            color: effectiveTextColor,
           ),
         ),
-        trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textLight),
+        trailing: trailing ?? Icon(Icons.arrow_forward_ios_rounded, size: 14, color: isDark ? Colors.white38 : AppColors.textLight),
         onTap: onTap,
       ),
     );
