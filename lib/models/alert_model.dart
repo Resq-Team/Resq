@@ -1,3 +1,4 @@
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
@@ -29,7 +30,7 @@ class AlertModel {
     this.isImportant = false,
   });
 
-  // Firestore Document එකෙන් AlertModel object එකක් සාදා ගැනීම
+  // Create an AlertModel object from a Firestore document.
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
@@ -41,32 +42,39 @@ class AlertModel {
       timeAgo: data['timeAgo'] ?? 'Just now',
       severityLabel: data['severityLabel'] ?? 'Info',
       severityColor: _parseColor(data['severityColor']),
-      badgeBgColor: _parseColor(data['badgeBgColor']).withOpacity(0.15),
+      badgeBgColor: _parseColor(data['badgeBgColor'])
+          .withValues(alpha: 0.15),
       icon: _parseIcon(data['icon']),
       isRead: data['isRead'] ?? false,
       isImportant: data['isImportant'] ?? false,
     );
   }
 
-  // Helper method for parsing colors from Firestore
+  // Parse colors from Firestore.
   static Color _parseColor(dynamic colorValue) {
-    if (colorValue is int) return Color(colorValue);
+    if (colorValue is int) {
+      return Color(colorValue);
+    }
+
     if (colorValue is String && colorValue.startsWith('#')) {
       final hexCode = colorValue.replaceAll('#', '');
       return Color(int.parse('FF$hexCode', radix: 16));
     }
-    return AppColors.emergencyRed; // Default color
+
+    return AppColors.emergencyRed;
   }
 
-  // Helper method for parsing icons
+  // Parse icons from Firestore.
   static IconData _parseIcon(dynamic iconData) {
     if (iconData is int) {
+      // ignore: non_const_argument_for_const_parameter
       return IconData(iconData, fontFamily: 'MaterialIcons');
     }
-    return Icons.warning_amber_rounded; // Default icon
+
+    return Icons.warning_amber_rounded;
   }
 
-  // Firestore එකේ දත්ත නොමැති විට හෝ Testing සඳහා Sample Data
+  // Sample data for testing or when Firestore data is unavailable.
   static List<AlertModel> getSampleAlerts() {
     return [
       AlertModel(
@@ -78,7 +86,8 @@ class AlertModel {
         timeAgo: '10m ago',
         severityLabel: 'High Severity',
         severityColor: AppColors.emergencyRed,
-        badgeBgColor: AppColors.emergencyRed.withOpacity(0.12),
+        badgeBgColor:
+            AppColors.emergencyRed.withValues(alpha: 0.12),
         icon: Icons.flood_outlined,
         isRead: false,
         isImportant: true,
@@ -92,7 +101,7 @@ class AlertModel {
         timeAgo: '1h ago',
         severityLabel: 'Medium Severity',
         severityColor: Colors.orange,
-        badgeBgColor: Colors.orange.withOpacity(0.12),
+        badgeBgColor: Colors.orange.withValues(alpha: 0.12),
         icon: Icons.landscape_outlined,
         isRead: false,
         isImportant: true,
@@ -106,7 +115,7 @@ class AlertModel {
         timeAgo: '3h ago',
         severityLabel: 'Advisory',
         severityColor: Colors.amber.shade700,
-        badgeBgColor: Colors.amber.withOpacity(0.12),
+        badgeBgColor: Colors.amber.withValues(alpha: 0.12),
         icon: Icons.air_rounded,
         isRead: true,
         isImportant: false,
