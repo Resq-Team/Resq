@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
@@ -22,62 +25,142 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _inviteCodeController = TextEditingController();
   final AuthService _authService = AuthService();
+
+  dynamic _selectedImage; // Mobile -> File, Web -> Uint8List
+  final ImagePicker _picker = ImagePicker();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _showTeamCodeField = false; // Toggles the invite code field visibility
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _inviteCodeController.dispose();
+    super.dispose();
+  }
+
+  // Gallery හෝ Camera මඟින් Profile Image එක තෝරාගැනීම
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+    );
+
+    if (pickedFile != null) {
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() => _selectedImage = bytes);
+      } else {
+        setState(() => _selectedImage = File(pickedFile.path));
+      }
+    }
+  }
+
+  // Image Picker Bottom Sheet පෙන්වීම
+  void _showImagePickerBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primaryNavy),
+              title: Text('Choose from Gallery', style: GoogleFonts.poppins(fontSize: 14)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryNavy),
+              title: Text('Take a Photo', style: GoogleFonts.poppins(fontSize: 14)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
 
-      // Determine role: only assign 'admin' if the correct invite code was entered
-      String role = 'citizen';
-      if (_showTeamCodeField && _inviteCodeController.text.trim() == kAdminInviteCode) {
-        role = 'admin';
-      } else if (_showTeamCodeField && _inviteCodeController.text.trim().isNotEmpty) {
-        // They tried a code but got it wrong
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Invalid team invite code.',
-              style: GoogleFonts.poppins(fontSize: 12),
-            ),
-            backgroundColor: AppColors.emergencyRed,
-            behavior: SnackBarBehavior.floating,
+    // Profile Image එක අනිවාර්ය කිරීමට අවශ්‍ය නම් මෙහි පරීක්ෂා කළ හැක
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please select a profile picture.',
+            style: GoogleFonts.poppins(fontSize: 12),
           ),
-        );
-        return;
-      }
+          backgroundColor: AppColors.emergencyRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
-      try {
-        await _authService.register(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          role: role,
-        );
+    setState(() => _isLoading = true);
 
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().replaceAll('Exception: ', ''),
-              style: GoogleFonts.poppins(fontSize: 12),
-            ),
-            backgroundColor: AppColors.emergencyRed,
-            behavior: SnackBarBehavior.floating,
+    // Determine role: only assign 'admin' if the correct invite code was entered
+    String role = 'citizen';
+    if (_showTeamCodeField && _inviteCodeController.text.trim() == kAdminInviteCode) {
+      role = 'admin';
+    } else if (_showTeamCodeField && _inviteCodeController.text.trim().isNotEmpty) {
+      // They tried a code but got it wrong
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Invalid team invite code.',
+            style: GoogleFonts.poppins(fontSize: 12),
           ),
-        );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
+          backgroundColor: AppColors.emergencyRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // AuthService හි update කළ register method එකට profileImageFile යැවීම
+      await _authService.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        profileImageFile: _selectedImage,
+        role: role,
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+            style: GoogleFonts.poppins(fontSize: 12),
+          ),
+          backgroundColor: AppColors.emergencyRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -119,7 +202,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
+
+                // Profile Picture Selector
+                Center(
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.grey.shade200,
+                        backgroundImage: _selectedImage != null
+                            ? (kIsWeb
+                                ? MemoryImage(_selectedImage) as ImageProvider
+                                : FileImage(_selectedImage) as ImageProvider)
+                            : null,
+                        child: _selectedImage == null
+                            ? const Icon(Icons.person_rounded, size: 55, color: Colors.grey)
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _showImagePickerBottomSheet,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.emergencyRed,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
 
                 // Full Name
                 Text(

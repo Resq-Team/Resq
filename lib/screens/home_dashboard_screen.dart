@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../widgets/pulse_sos_button.dart';
 import '../services/language_provider.dart';
+import '../services/theme_provider.dart';
 import 'sos_emergency_screen.dart';
 import 'package:resq/screens/disaster_report_screen.dart';
 import 'disaster_alerts_screen.dart';
@@ -36,11 +37,17 @@ class HomeDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // LanguageProvider එක Listen කිරීම (භාෂාව වෙනස් වූ පසු Auto Refresh වේ)
     final lang = context.watch<LanguageProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+
+    final primaryTextColor = isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : AppColors.border.withOpacity(0.8);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? const Color(0xFF121212) : AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
@@ -60,7 +67,7 @@ class HomeDashboardScreen extends StatelessWidget {
                           style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: primaryTextColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -70,7 +77,7 @@ class HomeDashboardScreen extends StatelessWidget {
                           lang.getText('stay_safe'),
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: secondaryTextColor,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -83,16 +90,16 @@ class HomeDashboardScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cardColor,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: borderColor),
                         ),
                         child: IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.notifications_outlined,
-                            color: AppColors.primaryNavy,
+                            color: isDark ? Colors.white : AppColors.primaryNavy,
                             size: 22,
                           ),
                           onPressed: () {
@@ -145,7 +152,7 @@ class HomeDashboardScreen extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: primaryTextColor,
                       ),
                     ),
                   ],
@@ -167,7 +174,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.assignment_late_outlined,
                     iconColor: const Color(0xFFE53935),
-                    bgColor: const Color(0xFFFFEBEE),
+                    bgColor: isDark ? const Color(0xFF3B1A1A) : const Color(0xFFFFEBEE),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('disaster_report'),
                     onTap: () {
                       Navigator.push(
@@ -183,7 +193,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.location_city_rounded,
                     iconColor: const Color(0xFF2E7D32),
-                    bgColor: const Color(0xFFE8F5E9),
+                    bgColor: isDark ? const Color(0xFF1A3320) : const Color(0xFFE8F5E9),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('shelter_locator'),
                     onTap: () {
                       Navigator.push(
@@ -199,7 +212,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.crisis_alert_rounded,
                     iconColor: const Color(0xFFE53935),
-                    bgColor: const Color(0xFFFFEBEE),
+                    bgColor: isDark ? const Color(0xFF3B1A1A) : const Color(0xFFFFEBEE),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('alerts'),
                     onTap: () {
                       Navigator.push(
@@ -215,7 +231,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.groups_rounded,
                     iconColor: const Color(0xFF1E88E5),
-                    bgColor: const Color(0xFFE3F2FD),
+                    bgColor: isDark ? const Color(0xFF192C42) : const Color(0xFFE3F2FD),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('volunteers'),
                     onTap: () {
                       Navigator.push(
@@ -231,7 +250,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.volunteer_activism_rounded,
                     iconColor: const Color(0xFFE53935),
-                    bgColor: const Color(0xFFFFEBEE),
+                    bgColor: isDark ? const Color(0xFF3B1A1A) : const Color(0xFFFFEBEE),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('donations'),
                     onTap: () {
                       Navigator.push(
@@ -247,7 +269,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.inventory_2_outlined,
                     iconColor: const Color(0xFF2E7D32),
-                    bgColor: const Color(0xFFE8F5E9),
+                    bgColor: isDark ? const Color(0xFF1A3320) : const Color(0xFFE8F5E9),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('resources'),
                     onTap: () {
                       Navigator.push(
@@ -263,7 +288,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.person_search_rounded,
                     iconColor: const Color(0xFFE53935),
-                    bgColor: const Color(0xFFFFEBEE),
+                    bgColor: isDark ? const Color(0xFF3B1A1A) : const Color(0xFFFFEBEE),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('missing_persons'),
                     onTap: () {
                       Navigator.push(
@@ -278,8 +306,11 @@ class HomeDashboardScreen extends StatelessWidget {
                   // 8. Emergency Contacts
                   _buildGridAction(
                     icon: Icons.phone_in_talk_rounded,
-                    iconColor: const Color(0xFF0F1E36),
-                    bgColor: const Color(0xFFE2E8F0),
+                    iconColor: isDark ? Colors.white : const Color(0xFF0F1E36),
+                    bgColor: isDark ? const Color(0xFF28303D) : const Color(0xFFE2E8F0),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('emergency_contacts'),
                     onTap: () {
                       Navigator.push(
@@ -295,7 +326,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.rate_review_outlined,
                     iconColor: const Color(0xFFFB8C00),
-                    bgColor: const Color(0xFFFFF3E0),
+                    bgColor: isDark ? const Color(0xFF3A2B14) : const Color(0xFFFFF3E0),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('feedback'),
                     onTap: () {
                       Navigator.push(
@@ -311,7 +345,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   _buildGridAction(
                     icon: Icons.admin_panel_settings_rounded,
                     iconColor: const Color(0xFFD32F2F),
-                    bgColor: const Color(0xFFFFEBEE),
+                    bgColor: isDark ? const Color(0xFF3B1A1A) : const Color(0xFFFFEBEE),
+                    cardColor: cardColor,
+                    borderColor: borderColor,
+                    textColor: primaryTextColor,
                     label: lang.getText('admin_sos'),
                     onTap: () {
                       Navigator.push(
@@ -337,6 +374,9 @@ class HomeDashboardScreen extends StatelessWidget {
     required IconData icon,
     required Color iconColor,
     required Color bgColor,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -348,9 +388,9 @@ class HomeDashboardScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border.withOpacity(0.8)),
+            border: Border.all(color: borderColor),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.025),
@@ -382,7 +422,7 @@ class HomeDashboardScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: textColor,
                   height: 1.1,
                 ),
               ),

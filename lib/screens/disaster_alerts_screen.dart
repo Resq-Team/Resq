@@ -2,11 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
 import '../models/alert_model.dart';
 import '../models/offline_data.dart';
 import '../services/local_storage_service.dart';
+import '../services/theme_provider.dart';
 
 class DisasterAlertsScreen extends StatefulWidget {
   final bool showBackButton;
@@ -57,9 +59,7 @@ class _DisasterAlertsScreenState
     }
   }
 
-  List<AlertModel> _filterAlerts(
-    List<AlertModel> alerts,
-  ) {
+  List<AlertModel> _filterAlerts(List<AlertModel> alerts) {
     if (_selectedFilterIndex == 1) {
       return alerts.where((a) => !a.isRead).toList();
     }
@@ -81,131 +81,158 @@ class _DisasterAlertsScreenState
     return _offlineSos;
   }
 
-  void _showAlertDetails(AlertModel alert) {
+  String _formatDateTime(DateTime dateTime) {
+    final local = dateTime.toLocal();
+
+    String twoDigits(int value) =>
+        value.toString().padLeft(2, '0');
+
+    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
+        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+  }
+
+  void _showAlertDetails(AlertModel alert, bool isDark) {
     if (!alert.isRead) {
       _markAlertAsRead(alert.id);
     }
 
+    final sheetBgColor =
+        isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final primaryTextColor =
+        isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor =
+        isDark ? Colors.white70 : AppColors.textSecondary;
+    final borderColor =
+        isDark ? Colors.white12 : AppColors.border;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: sheetBgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
         ),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: alert.badgeBgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      alert.icon,
-                      color: alert.severityColor,
-                      size: 24,
+                      color: borderColor,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          alert.title,
-                          style: GoogleFonts.poppins(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: alert.badgeBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        alert.icon,
+                        color: alert.severityColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.title,
+                            style: GoogleFonts.poppins(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: primaryTextColor,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${alert.location} • ${alert.timeAgo}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+                          Text(
+                            '${alert.location} • ${alert.timeAgo}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: secondaryTextColor,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(color: borderColor),
+                const SizedBox(height: 12),
+                Text(
+                  'Incident Details & Advisory',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  alert.description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: secondaryTextColor,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: alert.severityColor,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: Text(
+                      'Acknowledge',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Divider(color: AppColors.divider),
-              const SizedBox(height: 12),
-              Text(
-                'Incident Details & Advisory',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                alert.description,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: alert.severityColor,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: Text(
-                    'Acknowledge',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  void _showOfflineSosDetails(OfflineData sos) {
+  void _showOfflineSosDetails(OfflineData sos, bool isDark) {
     final data = sos.data;
     final isSynced = sos.syncStatus == 'synced';
+
+    final backgroundColor =
+        isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final primaryTextColor =
+        isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor =
+        isDark ? Colors.white70 : AppColors.textSecondary;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(24),
@@ -224,7 +251,7 @@ class _DisasterAlertsScreenState
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: primaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -241,37 +268,45 @@ class _DisasterAlertsScreenState
                 _buildDetailRow(
                   'Name',
                   data['userName']?.toString() ?? 'Anonymous',
+                  isDark,
                 ),
                 _buildDetailRow(
                   'Phone',
                   data['userPhone']?.toString() ?? 'Not provided',
+                  isDark,
                 ),
                 _buildDetailRow(
                   'Latitude',
                   data['latitude']?.toString() ?? 'Unknown',
+                  isDark,
                 ),
                 _buildDetailRow(
                   'Longitude',
                   data['longitude']?.toString() ?? 'Unknown',
+                  isDark,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Message',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
+                    color: primaryTextColor,
                   ),
                 ),
                 Text(
                   data['message']?.toString() ??
                       'Emergency! Immediate help needed.',
-                  style: GoogleFonts.poppins(fontSize: 13),
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: secondaryTextColor,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Created: ${_formatDateTime(sos.createdAt)}',
                   style: GoogleFonts.poppins(
                     fontSize: 11,
-                    color: AppColors.textLight,
+                    color: secondaryTextColor,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -290,7 +325,11 @@ class _DisasterAlertsScreenState
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    bool isDark,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -303,13 +342,17 @@ class _DisasterAlertsScreenState
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppColors.textPrimary,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.poppins(fontSize: 12),
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -317,18 +360,12 @@ class _DisasterAlertsScreenState
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    final local = dateTime.toLocal();
-
-    String twoDigits(int value) =>
-        value.toString().padLeft(2, '0');
-
-    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
-        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
-  }
-
-  Widget _buildFilterTab(int index, String label) {
-    final selected = _selectedFilterIndex == index;
+  Widget _buildFilterTab(
+    int index,
+    String label,
+    bool isDark,
+  ) {
+    final isSelected = _selectedFilterIndex == index;
 
     return Expanded(
       child: GestureDetector(
@@ -341,14 +378,14 @@ class _DisasterAlertsScreenState
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: selected
+            color: isSelected
                 ? AppColors.emergencyRed
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected
+              color: isSelected
                   ? AppColors.emergencyRed
-                  : AppColors.border,
+                  : (isDark ? Colors.white24 : AppColors.border),
             ),
           ),
           child: Text(
@@ -357,10 +394,10 @@ class _DisasterAlertsScreenState
             style: GoogleFonts.poppins(
               fontSize: 12,
               fontWeight:
-                  selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected
+                  isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected
                   ? Colors.white
-                  : AppColors.textSecondary,
+                  : (isDark ? Colors.white70 : AppColors.textSecondary),
             ),
           ),
         ),
@@ -368,22 +405,36 @@ class _DisasterAlertsScreenState
     );
   }
 
-  Widget _buildAlertCard(AlertModel alert) {
+  Widget _buildAlertCard(AlertModel alert, bool isDark) {
+    final cardColor =
+        isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor =
+        isDark ? Colors.white12 : AppColors.border;
+    final primaryTextColor =
+        isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor =
+        isDark ? Colors.white70 : AppColors.textSecondary;
+    final mutedTextColor =
+        isDark ? Colors.white54 : AppColors.textLight;
+
     return GestureDetector(
-      onTap: () => _showAlertDetails(alert),
+      onTap: () => _showAlertDetails(alert, isDark),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: !alert.isRead
                 ? alert.severityColor.withValues(alpha: 0.35)
-                : AppColors.border,
+                : borderColor,
+            width: !alert.isRead ? 1.2 : 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(
+                alpha: isDark ? 0.2 : 0.03,
+              ),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -418,7 +469,7 @@ class _DisasterAlertsScreenState
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: primaryTextColor,
                           ),
                         ),
                       ),
@@ -426,7 +477,7 @@ class _DisasterAlertsScreenState
                         alert.timeAgo,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: AppColors.textLight,
+                          color: mutedTextColor,
                         ),
                       ),
                     ],
@@ -445,7 +496,7 @@ class _DisasterAlertsScreenState
                     alert.location,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor,
                     ),
                   ),
                 ],
@@ -457,17 +508,27 @@ class _DisasterAlertsScreenState
     );
   }
 
-  Widget _buildOfflineSosCard(OfflineData sos) {
+  Widget _buildOfflineSosCard(OfflineData sos, bool isDark) {
     final isSynced = sos.syncStatus == 'synced';
+
     final message = sos.data['message']?.toString() ??
         'Emergency! Immediate help needed.';
 
+    final cardColor =
+        isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final primaryTextColor =
+        isDark ? Colors.white : AppColors.textPrimary;
+    final secondaryTextColor =
+        isDark ? Colors.white70 : AppColors.textSecondary;
+    final mutedTextColor =
+        isDark ? Colors.white54 : AppColors.textLight;
+
     return GestureDetector(
-      onTap: () => _showOfflineSosDetails(sos),
+      onTap: () => _showOfflineSosDetails(sos, isDark),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSynced
@@ -476,7 +537,9 @@ class _DisasterAlertsScreenState
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(
+                alpha: isDark ? 0.2 : 0.03,
+              ),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -516,7 +579,7 @@ class _DisasterAlertsScreenState
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: primaryTextColor,
                           ),
                         ),
                       ),
@@ -524,7 +587,7 @@ class _DisasterAlertsScreenState
                         _formatDateTime(sos.createdAt),
                         style: GoogleFonts.poppins(
                           fontSize: 10,
-                          color: AppColors.textLight,
+                          color: mutedTextColor,
                         ),
                       ),
                     ],
@@ -547,16 +610,16 @@ class _DisasterAlertsScreenState
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios_rounded,
               size: 14,
-              color: AppColors.textLight,
+              color: mutedTextColor,
             ),
           ],
         ),
@@ -564,13 +627,13 @@ class _DisasterAlertsScreenState
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Text(
         'No alerts found in this category',
         style: GoogleFonts.poppins(
           fontSize: 14,
-          color: AppColors.textSecondary,
+          color: isDark ? Colors.white70 : AppColors.textSecondary,
         ),
       ),
     );
@@ -578,12 +641,21 @@ class _DisasterAlertsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    final bgColor =
+        isDark ? const Color(0xFF121212) : AppColors.background;
+    final barColor =
+        isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final borderColor =
+        isDark ? Colors.white12 : AppColors.border;
     final offlineSos = _filteredOfflineSos;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor:
+            isDark ? const Color(0xFF1A1A2E) : AppColors.primaryNavy,
         elevation: 0,
         leading: widget.showBackButton
             ? IconButton(
@@ -618,22 +690,22 @@ class _DisasterAlertsScreenState
       body: Column(
         children: [
           Container(
-            color: Colors.white,
+            color: barColor,
             padding: const EdgeInsets.symmetric(
               horizontal: 20,
               vertical: 12,
             ),
             child: Row(
               children: [
-                _buildFilterTab(0, 'All'),
+                _buildFilterTab(0, 'All', isDark),
                 const SizedBox(width: 10),
-                _buildFilterTab(1, 'Unread'),
+                _buildFilterTab(1, 'Unread', isDark),
                 const SizedBox(width: 10),
-                _buildFilterTab(2, 'Important'),
+                _buildFilterTab(2, 'Important', isDark),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: borderColor),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _firestore
@@ -660,7 +732,7 @@ class _DisasterAlertsScreenState
                 final total = filteredAlerts.length + offlineSos.length;
 
                 if (total == 0) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(isDark);
                 }
 
                 return RefreshIndicator(
@@ -676,12 +748,15 @@ class _DisasterAlertsScreenState
                       if (index < filteredAlerts.length) {
                         return _buildAlertCard(
                           filteredAlerts[index],
+                          isDark,
                         );
                       }
 
                       final sosIndex = index - filteredAlerts.length;
+
                       return _buildOfflineSosCard(
                         offlineSos[sosIndex],
+                        isDark,
                       );
                     },
                   ),

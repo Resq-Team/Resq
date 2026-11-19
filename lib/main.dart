@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,6 +10,7 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
 import 'services/local_storage_service.dart';
+import 'services/theme_provider.dart';
 import 'widgets/connectivity_banner.dart';
 
 Future<void> main() async {
@@ -39,10 +41,13 @@ Future<void> main() async {
     ),
   );
 
-  // Provide LanguageProvider to the whole app
+  // Provide LanguageProvider and ThemeProvider to the whole app
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => LanguageProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
       child: const ResQApp(),
     ),
   );
@@ -53,10 +58,25 @@ class ResQApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
     return MaterialApp(
       title: 'ResQ - Smart Disaster Relief',
       debugShowCheckedModeBanner: false,
+      themeMode: themeProvider.themeMode,
       theme: AppTheme.lightTheme,
+
+      // Dark theme
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        cardColor: const Color(0xFF1E1E1E),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0D253F),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
 
       // Keep the connectivity banner active throughout the app
       builder: (context, child) {
